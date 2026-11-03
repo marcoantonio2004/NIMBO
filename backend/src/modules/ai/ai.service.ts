@@ -267,4 +267,100 @@ Tu objetivo es comprender el lenguaje natural del usuario y ejecutar acciones re
       response: `He recibido tu mensaje: "${message}". Puedes pedirme registrar un recordatorio (ej. "Recuérdame mañana a las 8am llamar al hospital"), consultar tus actividades pendientes ("¿Qué tengo hoy?"), posponer tareas o marcar actividades como completadas.`,
     };
   }
+
+  static async getDailyGreeting(userId: string): Promise<{
+    greeting: string;
+    todayEvents: Array<{ id: string; title: string; time: string; priority: string }>;
+    overdueEventsCount: number;
+    totalPendingCount: number;
+  }> {
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    const timezone = user?.timezone || 'America/Mexico_City';
+    const userName = user?.name ? user.name.split(' ')[0] : 'Propietario';
+
+    const now = new Date();
+    const currentDateStr = now.toLocaleDateString('es-MX', {
+      timeZone: timezone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    });
+    const [d, m, y] = currentDateStr.split('/');
+    const todayFormatted = `${y}-${m}-${d}`;
+
+    const hour = parseInt(
+      now.toLocaleTimeString('es-MX', {
+        timeZone: timezone,
+        hour: '2-digit',
+        hour12: false,
+      }),
+      10
+    );
+
+    const timeGreeting =
+      hour < 12 ? '¡Buenos días' : hour < 19 ? '¡Buenas tardes' : '¡Buenas noches';
+
+    // Query today's active reminders
+    const todayReminders = await prisma.reminder.findMany({
+      where: {
+        userId,
+        date: todayFormatted,
+        status: { in: ['PENDING', 'SNOOZED', 'OVERDUE'] },
+      },
+      orderBy: { time: 'asc' },
+    });
+
+    // Query overdue reminders before today
+    const overdueReminders = await prisma.reminder.findMany({
+      where: {
+        userId,
+        date: { lt: todayFormatted },
+        status: { in: ['PENDING', 'OVERDUE'] },
+      },
+    });
+
+    // Query total pending
+    const totalPending = await prisma.reminder.count({
+      where: {
+        userId,
+        status: { in: ['PENDING', 'SNOOZED', 'OVERDUE'] },
+      },
+    });
+
+    // Format human-friendly proactive greeting text
+    let message = `${timeGreeting}, ${userName}! `;
+
+    if (todayReminders.length === 0) {
+      message += `Hoy no tienes actividades pendientes programadas, tu agenda está libre. ✨\n\n`;
+    } else if (todayReminders.length === 1) {
+      const r = todayReminders[0];
+      message += `Tienes 1 actividad programada para hoy:\n• ⏰ **${r.time}** — ${r.title}\n\n`;
+    } else {
+      message += `Tienes ${todayReminders.length} actividades programadas para hoy:\n`;
+      todayReminders.forEach((r) => {
+        message += `• ⏰ **${r.time}** — ${r.title}\n`;
+      });
+      message += `\n`;
+    }
+
+    if (overdueReminders.length > 0) {
+      message += `⚠️ Tienes ${overdueReminders.length} pendiente${
+        overdueReminders.length > 1 ? 's' : ''
+      } atrasado${overdueReminders.length > 1 ? 's' : ''} de días anteriores.\n\n`;
+    }
+
+    message += `¿En qué te puedo ayudar hoy? Puedes pedirme agregar una nueva actividad, consultar tu semana o posponer alguna cita.`;
+
+    return {
+      greeting: message,
+      todayEvents: todayReminders.map((r) => ({
+        id: r.id,
+        title: r.title,
+        time: r.time,
+        priority: r.priority,
+      })),
+      overdueEventsCount: overdueReminders.length,
+      totalPendingCount: totalPending,
+    };
+  }
 }

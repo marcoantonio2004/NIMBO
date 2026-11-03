@@ -1,18 +1,29 @@
-import { getBoss, REMINDER_QUEUE, scheduleNotificationJob } from './boss';
+import {
+  getBoss,
+  REMINDER_QUEUE,
+  scheduleReminderMilestones,
+  ReminderNotificationJobData,
+} from './boss';
 import { prisma } from '../db/prisma';
 import { PushService } from '../modules/push/push.service';
-import { getNextRecurrenceDate, calculateScheduledTimestamp } from '../utils/time';
+import { getNextRecurrenceDate } from '../utils/time';
 
 export async function startNotificationWorker() {
   console.log('🚀 Iniciando NIMBO Notification Worker...');
 
   const boss = await getBoss();
 
-  await boss.work<{ reminderId: string }>(REMINDER_QUEUE, async (jobs) => {
-    // Process jobs in batch or one by one
+  await boss.work<ReminderNotificationJobData>(REMINDER_QUEUE, async (jobs) => {
+    // Process jobs
     for (const job of jobs) {
-      const { reminderId } = job.data;
-      console.log(`[Worker] Procesando recordatorio ID: ${reminderId}`);
+      const {
+        reminderId,
+        stage = 'exact',
+        stageLabel = '',
+        speechText,
+      } = job.data;
+
+      console.log(`[Worker] Procesando hito [${stage}] para recordatorio ID: ${reminderId}`);
 
       try {
         const reminder = await prisma.reminder.findUnique({
@@ -30,19 +41,42 @@ export async function startNotificationWorker() {
           continue;
         }
 
-        // Send Push Notification
-        const categoryName = reminder.category?.name ? ` [${reminder.category.name}]` : '';
-        const priorityIcon = reminder.priority === 'HIGH' ? '🚨 ' : reminder.priority === 'MEDIUM' ? '🔔 ' : '📋 ';
+        // Generate tailored speech text and title based on milestone
+        const spokenMessage =
+          speechText ||
+          (stage === '1_day'
+            ? `Atención. Falta un día para tu evento: ${reminder.title}.`
+            : stage === '1_hour'
+            ? `Atención. Falta una hora para tu evento: ${reminder.title}.`
+            : stage === '10_min'
+            ? `Atención. Faltan diez minutos para: ${reminder.title}.`
+            : `Es momento de tu actividad: ${reminder.title}.`);
+
+        const iconPrefix =
+          stage === '1_day'
+            ? '🚨 [1 día] '
+            : stage === '1_hour'
+            ? '🔔 [1 hora] '
+            : stage === '10_min'
+            ? '⚡ [10 min] '
+            : '⏰ ';
 
         const payload = {
-          title: `${priorityIcon}Recordatorio: ${reminder.title}`,
-          body: reminder.description || `Actividad programada para hoy a las ${reminder.time}${categoryName}`,
+          title: `${iconPrefix}${reminder.title}`,
+          body:
+            reminder.description ||
+            (stageLabel
+              ? `${stageLabel}: ${reminder.title} a las ${reminder.time}`
+              : `Actividad programada: ${reminder.title} (${reminder.time})`),
           url: `/reminders?id=${reminder.id}`,
-          tag: `reminder-${reminder.id}`,
+          tag: `reminder-${reminder.id}-${stage}`,
+          speechText: spokenMessage,
           data: {
             reminderId: reminder.id,
             date: reminder.date,
             time: reminder.time,
+            stage,
+            speechText: spokenMessage,
           },
         };
 
@@ -53,24 +87,20 @@ export async function startNotificationWorker() {
         );
 
         console.log(
-          `[Worker] Notificación enviada para ${reminder.title}: ${result.sent} enviados, ${result.failed} fallidos.`
+          `[Worker] Notificación de hito [${stage}] enviada para "${reminder.title}": ${result.sent} enviados, ${result.failed} fallidos.`
         );
 
-        // If recurring and not completed, create next recurrence automatically
-        if (reminder.recurrence && reminder.recurrence !== 'NONE') {
+        // Only on the final 'exact' milestone: if recurring, create next occurrence
+        if (stage === 'exact' && reminder.recurrence && reminder.recurrence !== 'NONE') {
           const nextDate = getNextRecurrenceDate(
             reminder.date,
             reminder.recurrence,
             reminder.recurrenceInterval || 1
           );
 
-          const nextScheduledAt = calculateScheduledTimestamp(
-            nextDate,
-            reminder.time,
-            reminder.advanceMinutes
+          console.log(
+            `[Worker] Programando siguiente recurrencia (${reminder.recurrence}) para el ${nextDate}`
           );
-
-          console.log(`[Worker] Programando siguiente recurrencia (${reminder.recurrence}) para el ${nextDate}`);
 
           const nextReminder = await prisma.reminder.create({
             data: {
@@ -80,7 +110,7 @@ export async function startNotificationWorker() {
               description: reminder.description,
               date: nextDate,
               time: reminder.time,
-              scheduledAt: nextScheduledAt,
+              scheduledAt: new Date(), // updated automatically by milestone scheduler
               priority: reminder.priority,
               status: 'PENDING',
               recurrence: reminder.recurrence,
@@ -90,18 +120,25 @@ export async function startNotificationWorker() {
             },
           });
 
-          // Schedule next job in pg-boss
-          const nextJobId = await scheduleNotificationJob(nextReminder.id, nextScheduledAt);
-          if (nextJobId) {
+          // Schedule milestone jobs in pg-boss
+          const nextJobIds = await scheduleReminderMilestones({
+            id: nextReminder.id,
+            title: nextReminder.title,
+            date: nextReminder.date,
+            time: nextReminder.time,
+            advanceMinutes: nextReminder.advanceMinutes,
+          });
+
+          if (nextJobIds.length > 0) {
             await prisma.reminder.update({
               where: { id: nextReminder.id },
-              data: { bossJobId: nextJobId },
+              data: { bossJobId: nextJobIds.join(',') },
             });
           }
         }
       } catch (err) {
         console.error(`[Worker] Error procesando recordatorio ${reminderId}:`, err);
-        throw err; // Allow pg-boss to retry according to retry policy
+        throw err;
       }
     }
   });

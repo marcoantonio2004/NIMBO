@@ -1,37 +1,71 @@
 import { useEffect, useRef } from 'react';
 import { ReminderItemData } from '../context/ReminderContext';
 import { playReminderChime } from '../utils/sound';
+import { speakReminderAlert } from '../utils/speech';
 
 export function useForegroundAlerts(reminders: ReminderItemData[]) {
-  const alertedIdsRef = useRef<Set<string>>(new Set());
+  const alertedStagesRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
-    const checkDueReminders = () => {
-      const now = new Date();
-      const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-      const nowHours = String(now.getHours()).padStart(2, '0');
-      const nowMinutes = String(now.getMinutes()).padStart(2, '0');
-      const currentTimeKey = `${nowHours}:${nowMinutes}`;
+    const checkAlerts = () => {
+      const now = Date.now();
 
       reminders.forEach((r) => {
         if (r.status === 'COMPLETED') return;
 
-        // Check if reminder is for today and its scheduled time is reached
-        if (r.date === todayStr && r.time === currentTimeKey) {
-          const alertKey = `${r.id}-${r.date}-${r.time}`;
-          if (!alertedIdsRef.current.has(alertKey)) {
-            alertedIdsRef.current.add(alertKey);
+        // Parse scheduled time
+        const [y, m, d] = r.date.split('-').map(Number);
+        const [h, min] = r.time.split(':').map(Number);
+        const scheduledTime = new Date(y, m - 1, d, h, min, 0).getTime();
 
-            // Play audio alert chime
+        const diffMinutes = Math.round((scheduledTime - now) / (60 * 1000));
+
+        let stage: '1_day' | '1_hour' | '10_min' | 'exact' | null = null;
+        let stageLabel = '';
+
+        // 1 día antes (1440 min)
+        if (diffMinutes >= 1438 && diffMinutes <= 1442) {
+          stage = '1_day';
+          stageLabel = 'Falta 1 día';
+        }
+        // 1 hora antes (60 min)
+        else if (diffMinutes >= 58 && diffMinutes <= 62) {
+          stage = '1_hour';
+          stageLabel = 'Falta 1 hora';
+        }
+        // 10 minutos antes (10 min)
+        else if (diffMinutes >= 9 && diffMinutes <= 11) {
+          stage = '10_min';
+          stageLabel = 'Faltan 10 minutos';
+        }
+        // Al momento exacto (0 min)
+        else if (diffMinutes >= -1 && diffMinutes <= 1) {
+          stage = 'exact';
+          stageLabel = 'Es momento del evento';
+        }
+
+        if (stage) {
+          const alertKey = `${r.id}-${stage}`;
+          if (!alertedStagesRef.current.has(alertKey)) {
+            alertedStagesRef.current.add(alertKey);
+
+            // 1. Play chime sound
             playReminderChime();
 
-            // Native browser notification if permitted
-            if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
+            // 2. Speak voice alert aloud in Spanish
+            speakReminderAlert(r.title, stage);
+
+            // 3. Show native notification banner
+            if (
+              typeof window !== 'undefined' &&
+              'Notification' in window &&
+              Notification.permission === 'granted'
+            ) {
               try {
-                new Notification(`✦ Recordatorio: ${r.title}`, {
-                  body: r.description || `Actividad programada para las ${r.time}`,
+                new Notification(`✦ Recordatorio (${stageLabel}): ${r.title}`, {
+                  body: `${stageLabel} para tu evento: ${r.title} (${r.time})`,
                   icon: '/favicon.svg',
-                  tag: `due-${r.id}`,
+                  tag: `alert-${alertKey}`,
                 });
               } catch {}
             }
@@ -40,7 +74,7 @@ export function useForegroundAlerts(reminders: ReminderItemData[]) {
       });
     };
 
-    const interval = setInterval(checkDueReminders, 5000);
+    const interval = setInterval(checkAlerts, 10000); // Check every 10 seconds
     return () => clearInterval(interval);
   }, [reminders]);
 }

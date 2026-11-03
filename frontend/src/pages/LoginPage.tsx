@@ -4,19 +4,19 @@ import { Lock, Mail, ArrowRight, ShieldCheck, AlertCircle } from 'lucide-react';
 
 export const LoginPage: React.FC = () => {
   const { login } = useAuth();
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState('owner@nimbo.local');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email || !password) return;
+    if (!password) return;
 
     try {
       setLoading(true);
       setError('');
-      await login({ email, password });
+      await login({ email: email.trim() || 'owner@nimbo.local', password });
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Error al iniciar sesión';
       setError(msg);
@@ -56,10 +56,10 @@ export const LoginPage: React.FC = () => {
               <input
                 type="email"
                 required
-                autoFocus
+                autoComplete="username"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="propietario@nimbo.local"
+                placeholder="owner@nimbo.local"
                 className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-[var(--line)] bg-[var(--surface-soft)] text-sm font-semibold focus:border-[var(--site-primary)] outline-none"
               />
             </div>
@@ -74,6 +74,8 @@ export const LoginPage: React.FC = () => {
               <input
                 type="password"
                 required
+                autoFocus
+                autoComplete="current-password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••••••"

@@ -1,6 +1,15 @@
-// NIMBO Service Worker — Web Push 24/7 & Offline Shell Cache
-const CACHE_NAME = 'nimbo-shell-v1';
-const SHELL_ASSETS = ['/', '/index.html', '/favicon.svg', '/manifest.json'];
+// NIMBO Service Worker — Web Push 24/7, Speech Alerts & Offline Shell Cache
+const CACHE_NAME = 'nimbo-shell-v3';
+const SHELL_ASSETS = [
+  '/',
+  '/index.html',
+  '/favicon.svg',
+  '/favicon-32.png',
+  '/icon-192.png',
+  '/icon-512.png',
+  '/apple-touch-icon.png',
+  '/manifest.json',
+];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -23,11 +32,9 @@ self.addEventListener('activate', (event) => {
 });
 
 // Network-first for API, cache-fallback for shell assets.
-// Never caches sensitive user data to protect privacy on shared devices.
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
 
-  // Skip caching API requests
   if (url.pathname.startsWith('/api')) {
     return;
   }
@@ -43,6 +50,7 @@ self.addEventListener('push', (event) => {
     title: '✦ Recordatorio · Nimbo',
     body: 'Tienes una actividad programada.',
     url: '/',
+    speechText: 'Tienes una actividad programada en Nimbo.',
   };
 
   try {
@@ -57,14 +65,16 @@ self.addEventListener('push', (event) => {
 
   const options = {
     body: data.body,
-    icon: data.icon || '/favicon.svg',
-    badge: data.badge || '/favicon.svg',
+    icon: data.icon || '/icon-192.png',
+    badge: data.badge || '/favicon-32.png',
     tag: data.tag || 'nimbo-notification',
     renotify: true,
     requireInteraction: true,
+    vibrate: [300, 100, 300],
     data: {
       url: data.url || '/',
       reminderId: data.data?.reminderId,
+      speechText: data.speechText || data.body,
     },
     actions: [
       { action: 'open', title: 'Ver actividad' },
@@ -72,7 +82,20 @@ self.addEventListener('push', (event) => {
     ],
   };
 
-  event.waitUntil(self.registration.showNotification(data.title, options));
+  // Broadcast to open clients to speak aloud with Web Speech
+  event.waitUntil(
+    Promise.all([
+      self.registration.showNotification(data.title, options),
+      self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+        clientList.forEach((client) => {
+          client.postMessage({
+            type: 'NIMBO_VOICE_ALERT',
+            text: data.speechText || data.body,
+          });
+        });
+      }),
+    ])
+  );
 });
 
 // Notification Click Handler

@@ -30,10 +30,9 @@ export const Navbar: React.FC<NavbarProps> = ({ theme, toggleTheme }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const navLinks = [
-    { to: '/', label: 'Inicio', icon: LayoutDashboard },
+    { to: '/', label: 'Asistente', icon: Sparkles },
     { to: '/reminders', label: 'Recordatorios', icon: CheckSquare },
     { to: '/calendar', label: 'Calendario', icon: Calendar },
-    { to: '/assistant', label: 'Asistente IA', icon: Sparkles },
     { to: '/history', label: 'Historial', icon: History },
     { to: '/settings', label: 'Configuración', icon: Settings },
   ];

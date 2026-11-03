@@ -21,6 +21,9 @@ import { aiRouter } from './modules/ai/ai.router';
 
 export const app = express();
 
+// Trust reverse proxy (Cloudflare Tunnel / localtunnel) for accurate client IP & rate limiting
+app.set('trust proxy', 1);
+
 app.use(
   helmet({
     contentSecurityPolicy: false, // For PWA asset flexibility

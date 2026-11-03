@@ -31,15 +31,46 @@ export const PushProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (typeof window !== 'undefined' && 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window) {
+    if (
+      typeof window !== 'undefined' &&
+      'serviceWorker' in navigator &&
+      'PushManager' in window &&
+      'Notification' in window
+    ) {
       setIsSupported(true);
       setPermission(Notification.permission);
 
-      // Check current subscription
-      navigator.serviceWorker.ready.then((reg) => {
-        reg.pushManager.getSubscription().then((sub) => {
-          setIsSubscribed(!!sub);
-        });
+      // Check current subscription and sync with backend if granted
+      navigator.serviceWorker.ready.then(async (reg) => {
+        try {
+          const sub = await reg.pushManager.getSubscription();
+          if (sub) {
+            setIsSubscribed(true);
+            const subJson = sub.toJSON();
+            if (subJson.endpoint && subJson.keys?.p256dh && subJson.keys?.auth) {
+              const ua = navigator.userAgent;
+              let deviceName = 'Navegador Web';
+              if (/iPhone/i.test(ua)) deviceName = 'iPhone (Safari PWA)';
+              else if (/iPad/i.test(ua)) deviceName = 'iPad (Safari PWA)';
+              else if (/Android/i.test(ua)) deviceName = 'Dispositivo Android';
+              else if (/Macintosh/i.test(ua)) deviceName = 'MacBook / Mac Desktop';
+              else if (/Windows/i.test(ua)) deviceName = 'Windows PC';
+
+              await api.push.subscribe({
+                endpoint: subJson.endpoint,
+                keys: {
+                  p256dh: subJson.keys.p256dh,
+                  auth: subJson.keys.auth,
+                },
+                deviceName,
+              }).catch(() => {});
+            }
+          } else {
+            setIsSubscribed(false);
+          }
+        } catch (e) {
+          console.warn('Error checking push subscription:', e);
+        }
       });
     }
   }, []);
@@ -88,6 +119,10 @@ export const PushProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         setIsSubscribed(true);
         setLoading(false);
+
+        // Immediate confirmation push to Android notification bar
+        api.push.test().catch((e) => console.warn('Test push notification error:', e));
+
         return true;
       }
 

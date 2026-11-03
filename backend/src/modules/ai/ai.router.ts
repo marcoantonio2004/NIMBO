@@ -21,6 +21,18 @@ const chatSchema = z.object({
     .default([]),
 });
 
+aiRouter.get('/greeting', async (req: AuthenticatedRequest, res, next) => {
+  try {
+    const greetingData = await AIService.getDailyGreeting(req.user!.id);
+    res.json({
+      success: true,
+      ...greetingData,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
 aiRouter.post('/chat', validateRequest(chatSchema), async (req: AuthenticatedRequest, res, next) => {
   try {
     const { message, history } = req.body;

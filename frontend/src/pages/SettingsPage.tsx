@@ -2,17 +2,17 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { usePush } from '../context/PushContext';
 import { api } from '../api/client';
+import { playReminderChime } from '../utils/sound';
+import { speakReminderAlert } from '../utils/speech';
 import {
   User,
   Bell,
   Smartphone,
   Shield,
-  Key,
-  Globe,
   CheckCircle2,
   AlertCircle,
-  LogOut,
   Send,
+  Volume2,
 } from 'lucide-react';
 
 export const SettingsPage: React.FC = () => {
@@ -107,7 +107,7 @@ export const SettingsPage: React.FC = () => {
       <div>
         <h1 className="text-2xl font-black tracking-tight text-[var(--text)]">Configuración</h1>
         <p className="text-xs sm:text-sm text-[var(--muted)]">
-          Administración de cuenta propietaria, notificaciones push y dispositivos sincronizados
+          Administración de cuenta propietaria, notificaciones push y alertas con voz
         </p>
       </div>
 
@@ -279,6 +279,84 @@ export const SettingsPage: React.FC = () => {
               ))
             )}
           </div>
+        </div>
+      </section>
+
+      {/* Voice & Sound Alerts */}
+      <section className="bg-[var(--surface)] border border-[var(--line)] rounded-2xl p-5 sm:p-6 shadow-xs">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-9 h-9 rounded-xl bg-amber-500/10 text-amber-600 flex items-center justify-center font-bold">
+            <Volume2 className="w-5 h-5" />
+          </div>
+          <div>
+            <h2 className="text-base font-extrabold text-[var(--text)]">Alertas con Voz en Español</h2>
+            <p className="text-xs text-[var(--muted)]">
+              Narración hablada automática y timbre sonoro con anticipación progresiva
+            </p>
+          </div>
+        </div>
+
+        <div className="p-4 rounded-xl bg-[var(--surface-soft)] border border-[var(--line)] mb-4 space-y-3">
+          <p className="text-xs text-[var(--text)] leading-relaxed">
+            NIMBO pronuncia recordatorios en voz alta en español en 4 momentos clave para que nunca olvides una actividad:
+          </p>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+            <div className="p-2.5 rounded-xl border border-[var(--line)] bg-[var(--surface)]">
+              <span className="block font-black text-amber-500">1 día antes</span>
+              <span className="text-[11px] text-[var(--muted)]">Aviso preventivo</span>
+            </div>
+            <div className="p-2.5 rounded-xl border border-[var(--line)] bg-[var(--surface)]">
+              <span className="block font-black text-amber-500">1 hora antes</span>
+              <span className="text-[11px] text-[var(--muted)]">Preparación</span>
+            </div>
+            <div className="p-2.5 rounded-xl border border-[var(--line)] bg-[var(--surface)]">
+              <span className="block font-black text-amber-500">10 min antes</span>
+              <span className="text-[11px] text-[var(--muted)]">Salida o conexión</span>
+            </div>
+            <div className="p-2.5 rounded-xl border border-[var(--line)] bg-[var(--surface)]">
+              <span className="block font-black text-amber-500">Hora exacta</span>
+              <span className="text-[11px] text-[var(--muted)]">Inicio de actividad</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            onClick={() => {
+              playReminderChime();
+              speakReminderAlert('Reunión de trabajo', '1_day');
+            }}
+            className="px-3 py-1.5 rounded-xl border border-[var(--line)] bg-[var(--surface-soft)] hover:bg-[var(--line)] text-xs font-bold transition-all"
+          >
+            🔊 Probar voz (1 día)
+          </button>
+          <button
+            onClick={() => {
+              playReminderChime();
+              speakReminderAlert('Reunión de trabajo', '1_hour');
+            }}
+            className="px-3 py-1.5 rounded-xl border border-[var(--line)] bg-[var(--surface-soft)] hover:bg-[var(--line)] text-xs font-bold transition-all"
+          >
+            🔊 Probar voz (1 hora)
+          </button>
+          <button
+            onClick={() => {
+              playReminderChime();
+              speakReminderAlert('Reunión de trabajo', '10_min');
+            }}
+            className="px-3 py-1.5 rounded-xl border border-[var(--line)] bg-[var(--surface-soft)] hover:bg-[var(--line)] text-xs font-bold transition-all"
+          >
+            🔊 Probar voz (10 min)
+          </button>
+          <button
+            onClick={() => {
+              playReminderChime();
+              speakReminderAlert('Reunión de trabajo', 'exact');
+            }}
+            className="px-3 py-1.5 rounded-xl border border-[var(--line)] bg-[var(--surface-soft)] hover:bg-[var(--line)] text-xs font-bold transition-all"
+          >
+            🔊 Probar voz (Exacto)
+          </button>
         </div>
       </section>
 

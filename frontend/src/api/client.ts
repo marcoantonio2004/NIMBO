@@ -164,6 +164,14 @@ export const api = {
 
   // AI Assistant
   ai: {
+    greeting: () =>
+      request<{
+        success: boolean;
+        greeting: string;
+        todayEvents: Array<{ id: string; title: string; time: string; priority: string }>;
+        overdueEventsCount: number;
+        totalPendingCount: number;
+      }>('/api/ai/greeting'),
     chat: (message: string, history: Array<{ role: string; content: string }> = []) =>
       request<{ success: boolean; response: string; toolExecuted?: string; toolResult?: any }>(
         '/api/ai/chat',

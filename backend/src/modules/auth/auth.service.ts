@@ -101,9 +101,30 @@ export class AuthService {
     userAgent?: string;
     ipAddress?: string;
   }) {
-    const user = await prisma.user.findUnique({
-      where: { email: data.email },
+    const normalizedEmail = (data.email || '').trim().toLowerCase();
+
+    // In a single-owner system, allow owner@nimbo.local, propietario@nimbo.local, or case-insensitive match
+    let user = await prisma.user.findFirst({
+      where: {
+        OR: [
+          { email: { equals: normalizedEmail, mode: 'insensitive' } },
+          ...(normalizedEmail === 'propietario@nimbo.local' || normalizedEmail === 'owner@nimbo.local'
+            ? [{ email: 'owner@nimbo.local' }, { email: 'propietario@nimbo.local' }]
+            : []),
+        ],
+      },
     });
+
+    // If email didn't match directly, check if password matches the single owner
+    if (!user) {
+      const singleOwner = await prisma.user.findFirst();
+      if (singleOwner) {
+        const isOwnerPass = await argon2.verify(singleOwner.passwordHash, data.password);
+        if (isOwnerPass) {
+          user = singleOwner;
+        }
+      }
+    }
 
     if (!user) {
       const error = new Error('Credenciales incorrectas.');

@@ -1,7 +1,11 @@
 import { prisma } from '../../db/prisma';
 import { ReminderStatus, Priority, RecurrenceType } from '@prisma/client';
 import { calculateScheduledTimestamp, getNextRecurrenceDate } from '../../utils/time';
-import { scheduleNotificationJob, cancelNotificationJob } from '../../worker/boss';
+import {
+  scheduleReminderMilestones,
+  scheduleNotificationJob,
+  cancelNotificationJobs,
+} from '../../worker/boss';
 
 export interface ListRemindersFilter {
   status?: ReminderStatus | 'active';
@@ -56,13 +60,22 @@ export class RemindersService {
       },
     });
 
-    // Schedule background notification job via pg-boss
-    const jobId = await scheduleNotificationJob(reminder.id, scheduledAt);
-    if (jobId) {
+    // Schedule background notification jobs for all milestones:
+    // 1 day before, 1 hour before, 10 min before, exact time
+    const jobIds = await scheduleReminderMilestones({
+      id: reminder.id,
+      title: reminder.title,
+      date: reminder.date,
+      time: reminder.time,
+      advanceMinutes: reminder.advanceMinutes,
+    });
+
+    if (jobIds.length > 0) {
       await prisma.reminder.update({
         where: { id: reminder.id },
-        data: { bossJobId: jobId },
+        data: { bossJobId: jobIds.join(',') },
       });
+      reminder.bossJobId = jobIds.join(',');
     }
 
     return reminder;
@@ -186,9 +199,9 @@ export class RemindersService {
 
       newScheduledAt = calculateScheduledTimestamp(targetDate, targetTime, targetAdvance);
 
-      // Cancel old pg-boss job
+      // Cancel old pg-boss jobs
       if (existing.bossJobId) {
-        await cancelNotificationJob(existing.bossJobId);
+        await cancelNotificationJobs(existing.bossJobId);
       }
     }
 
@@ -201,15 +214,22 @@ export class RemindersService {
       include: { category: true },
     });
 
-    // If scheduledAt changed and reminder is still active, schedule new pg-boss job
+    // If scheduledAt or title changed and reminder is still active, schedule milestone jobs
     if ((dateChanged || timeChanged || advanceChanged) && updated.status !== 'COMPLETED') {
-      const newJobId = await scheduleNotificationJob(updated.id, newScheduledAt);
-      if (newJobId) {
+      const jobIds = await scheduleReminderMilestones({
+        id: updated.id,
+        title: updated.title,
+        date: updated.date,
+        time: updated.time,
+        advanceMinutes: updated.advanceMinutes,
+      });
+      if (jobIds.length > 0) {
+        const joined = jobIds.join(',');
         await prisma.reminder.update({
           where: { id },
-          data: { bossJobId: newJobId },
+          data: { bossJobId: joined },
         });
-        updated.bossJobId = newJobId;
+        updated.bossJobId = joined;
       }
     }
 
@@ -220,7 +240,7 @@ export class RemindersService {
     const existing = await this.getById(userId, id);
 
     if (existing.bossJobId) {
-      await cancelNotificationJob(existing.bossJobId);
+      await cancelNotificationJobs(existing.bossJobId);
     }
 
     await prisma.reminder.delete({
@@ -237,7 +257,7 @@ export class RemindersService {
     if (nextDone) {
       // Complete reminder
       if (existing.bossJobId) {
-        await cancelNotificationJob(existing.bossJobId);
+        await cancelNotificationJobs(existing.bossJobId);
       }
 
       const completed = await prisma.reminder.update({
@@ -284,11 +304,18 @@ export class RemindersService {
           include: { category: true },
         });
 
-        const nextJobId = await scheduleNotificationJob(nextOccurrence.id, nextScheduledAt);
-        if (nextJobId) {
+        const nextJobIds = await scheduleReminderMilestones({
+          id: nextOccurrence.id,
+          title: nextOccurrence.title,
+          date: nextOccurrence.date,
+          time: nextOccurrence.time,
+          advanceMinutes: nextOccurrence.advanceMinutes,
+        });
+
+        if (nextJobIds.length > 0) {
           await prisma.reminder.update({
             where: { id: nextOccurrence.id },
-            data: { bossJobId: nextJobId },
+            data: { bossJobId: nextJobIds.join(',') },
           });
         }
       }
@@ -312,13 +339,21 @@ export class RemindersService {
         include: { category: true },
       });
 
-      const jobId = await scheduleNotificationJob(reactivated.id, scheduledAt);
-      if (jobId) {
+      const jobIds = await scheduleReminderMilestones({
+        id: reactivated.id,
+        title: reactivated.title,
+        date: reactivated.date,
+        time: reactivated.time,
+        advanceMinutes: reactivated.advanceMinutes,
+      });
+
+      if (jobIds.length > 0) {
+        const joined = jobIds.join(',');
         await prisma.reminder.update({
           where: { id },
-          data: { bossJobId: jobId },
+          data: { bossJobId: joined },
         });
-        reactivated.bossJobId = jobId;
+        reactivated.bossJobId = joined;
       }
 
       return { reactivated, nextOccurrence: null };
@@ -357,7 +392,7 @@ export class RemindersService {
     const scheduledAt = calculateScheduledTimestamp(targetDate, targetTime, 0);
 
     if (existing.bossJobId) {
-      await cancelNotificationJob(existing.bossJobId);
+      await cancelNotificationJobs(existing.bossJobId);
     }
 
     const updated = await prisma.reminder.update({

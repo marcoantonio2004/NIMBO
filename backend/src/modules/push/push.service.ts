@@ -90,10 +90,11 @@ export class PushService {
     const jsonPayload = JSON.stringify({
       title: payload.title,
       body: payload.body,
-      icon: payload.icon || '/favicon.svg',
-      badge: payload.badge || '/favicon.svg',
+      icon: payload.icon || '/icon-192.png',
+      badge: payload.badge || '/favicon-32.png',
       url: payload.url || '/',
       tag: payload.tag || reminderId || 'nimbo-notification',
+      vibrate: [200, 100, 200],
       data: payload.data || {},
     });
 
