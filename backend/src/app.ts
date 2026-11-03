@@ -2,7 +2,13 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
+import path from 'path';
+import fs from 'fs';
+import { fileURLToPath } from 'url';
 import { env } from './config/env';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 import { apiRateLimiter } from './middleware/rateLimit';
 import { errorHandler } from './middleware/errorHandler';
 
@@ -60,6 +66,24 @@ app.use('/api/categories', categoriesRouter);
 app.use('/api/stats', statsRouter);
 app.use('/api/push', pushRouter);
 app.use('/api/ai', aiRouter);
+
+// Serve frontend static build on port 4000
+const possibleDistPaths = [
+  path.resolve(process.cwd(), 'frontend/dist'),
+  path.resolve(process.cwd(), '../frontend/dist'),
+  path.resolve(__dirname, '../../frontend/dist'),
+];
+
+const frontendDist = possibleDistPaths.find((p) => fs.existsSync(p));
+if (frontendDist) {
+  app.use(express.static(frontendDist));
+  app.get('*', (req, res, next) => {
+    if (req.path.startsWith('/api')) {
+      return next();
+    }
+    res.sendFile(path.join(frontendDist, 'index.html'));
+  });
+}
 
 // Global error handler
 app.use(errorHandler);
