@@ -10,24 +10,6 @@ export interface ParsedReminderInput {
   tags: string[];
 }
 
-const CATEGORY_MAP: Record<string, Category> = {
-  personal: 'Personal',
-  trabajo: 'Trabajo',
-  laboral: 'Trabajo',
-  estudio: 'Estudio',
-  escuela: 'Estudio',
-  universidad: 'Estudio',
-  salud: 'Salud',
-  medico: 'Salud',
-  médico: 'Salud',
-  finanzas: 'Finanzas',
-  dinero: 'Finanzas',
-  banco: 'Finanzas',
-  hogar: 'Hogar',
-  casa: 'Hogar',
-  otro: 'Otro',
-};
-
 const DAY_NAME_MAP: Record<string, number> = {
   domingo: 0,
   lunes: 1,
@@ -43,7 +25,7 @@ const DAY_NAME_MAP: Record<string, number> = {
 /**
  * Calculates next date for a given day of the week (0 = Sunday, 1 = Monday, ... 6 = Saturday)
  */
-function getNextDayOfWeek(dayIndex: number): string {
+export function getNextDayOfWeek(dayIndex: number): string {
   const d = new Date();
   const currentDay = d.getDay();
   let daysUntil = (dayIndex - currentDay + 7) % 7;
@@ -62,7 +44,7 @@ function getNextDayOfWeek(dayIndex: number): string {
 export function parseQuickReminder(input: string): ParsedReminderInput {
   let text = input.trim();
   let priority: Priority = 'medium';
-  let category: Category = 'Personal';
+  const category: Category = 'Personal';
   let date = getTodayKey();
   let time = '09:00';
   const tags: string[] = [];
@@ -77,21 +59,7 @@ export function parseQuickReminder(input: string): ParsedReminderInput {
     text = text.replace(priorityMatch[0], ' ');
   }
 
-  // 2. Category / tag hashtags: #Trabajo, #salud, etc.
-  const tagMatches = text.match(/#([\wáéíóúñ]+)/gi);
-  if (tagMatches) {
-    for (const tagWithHash of tagMatches) {
-      const cleanTag = tagWithHash.replace('#', '').toLowerCase();
-      if (CATEGORY_MAP[cleanTag]) {
-        category = CATEGORY_MAP[cleanTag];
-      } else {
-        tags.push(cleanTag);
-      }
-      text = text.replace(tagWithHash, ' ');
-    }
-  }
-
-  // 3. Date expressions:
+  // 2. Date expressions:
   // "pasado mañana"
   if (/\bpasado\s+mañana\b/i.test(text)) {
     date = getTodayKey(2);
@@ -107,8 +75,9 @@ export function parseQuickReminder(input: string): ParsedReminderInput {
     date = getTodayKey(0);
     text = text.replace(/\bhoy\b/gi, ' ');
   }
-  // Specific day of week: "el viernes", "el lunes", "proximo sabado"
-  const dayMatch = text.match(/\b(?:el\s+|próximo\s+|proximo\s+)?(lunes|martes|miércoles|miercoles|jueves|viernes|sábado|sabado|domingo)\b/i);
+
+  // Specific day of week: "el viernes", "el lunes", "proximo sabado", "este viernes", "viernes"
+  const dayMatch = text.match(/\b(?:el\s+|próximo\s+|proximo\s+|este\s+)?(lunes|martes|miércoles|miercoles|jueves|viernes|sábado|sabado|domingo)\b/i);
   if (dayMatch) {
     const dayName = dayMatch[1].toLowerCase();
     if (dayName in DAY_NAME_MAP) {
@@ -117,17 +86,21 @@ export function parseQuickReminder(input: string): ParsedReminderInput {
     }
   }
 
-  // 4. Time expressions:
-  // e.g. "a las 14:30", "15:00", "5:30pm", "9am", "a las 8pm"
-  const timeRegex = /\b(?:a\s+las\s+)?(\d{1,2})(?::(\d{2}))?\s*(am|pm)?\b/i;
+  // 3. Time expressions:
+  // e.g. "a las 5 de la tarde", "a las 5 de la noche", "a las 10 de la mañana", "a las 17:00", "5pm", "5:30pm"
+  const timeRegex = /\b(?:a\s+las\s+|a\s+la\s+)?(\d{1,2})(?::(\d{2}))?\s*(am|pm|de\s+la\s+tarde|de\s+la\s+noche|de\s+la\s+mañana)?\b/i;
   const timeMatch = text.match(timeRegex);
   if (timeMatch) {
     let hours = parseInt(timeMatch[1], 10);
     const minutes = timeMatch[2] ? parseInt(timeMatch[2], 10) : 0;
-    const ampm = timeMatch[3] ? timeMatch[3].toLowerCase() : null;
+    const modifier = (timeMatch[3] || '').toLowerCase();
 
-    if (ampm === 'pm' && hours < 12) hours += 12;
-    if (ampm === 'am' && hours === 12) hours = 0;
+    if ((modifier.includes('pm') || modifier.includes('tarde') || modifier.includes('noche')) && hours < 12) {
+      hours += 12;
+    }
+    if ((modifier.includes('am') || modifier.includes('mañana')) && hours === 12) {
+      hours = 0;
+    }
 
     if (hours >= 0 && hours <= 23 && minutes >= 0 && minutes <= 59) {
       time = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
@@ -135,14 +108,19 @@ export function parseQuickReminder(input: string): ParsedReminderInput {
     }
   }
 
-  // 5. Clean up remaining title
+  // 4. Clean up remaining title (strip words like "recordatorio de", "recordar", "para el")
   const cleanTitle = text
+    .replace(/^(recordatorio\s+de|recuérdame\s+|recuerdame\s+|recordar\s+)/i, '')
+    .replace(/\s+(para\s+el|el)\s*$/i, '')
     .replace(/\s+/g, ' ')
     .replace(/^[,.\s-]+|[,.\s-]+$/g, '')
     .trim();
 
+  // Capitalize first letter
+  const finalTitle = cleanTitle ? cleanTitle.charAt(0).toUpperCase() + cleanTitle.slice(1) : input.trim();
+
   return {
-    title: cleanTitle || input.trim(),
+    title: finalTitle,
     date,
     time,
     priority,

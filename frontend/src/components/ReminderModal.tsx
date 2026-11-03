@@ -1,6 +1,6 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { useReminders, ReminderItemData } from '../context/ReminderContext';
-import { X, Clock, Calendar, Flag, Tag, Repeat, BellRing } from 'lucide-react';
+import { X, Clock, Calendar, Flag, Repeat } from 'lucide-react';
 
 interface ReminderModalProps {
   isOpen: boolean;
@@ -16,7 +16,7 @@ export const ReminderModal: React.FC<ReminderModalProps> = ({
   initialDate,
 }) => {
   const dialogRef = useRef<HTMLDialogElement>(null);
-  const { categories, createReminder, updateReminder } = useReminders();
+  const { createReminder, updateReminder } = useReminders();
 
   const todayKey = new Date().toISOString().split('T')[0];
 
@@ -25,11 +25,9 @@ export const ReminderModal: React.FC<ReminderModalProps> = ({
   const [date, setDate] = useState(initialDate || todayKey);
   const [time, setTime] = useState('09:00');
   const [priority, setPriority] = useState<'LOW' | 'MEDIUM' | 'HIGH'>('MEDIUM');
-  const [categoryId, setCategoryId] = useState<string>('');
   const [recurrence, setRecurrence] = useState<
     'NONE' | 'DAILY' | 'WEEKDAYS' | 'WEEKLY' | 'MONTHLY' | 'YEARLY'
   >('NONE');
-  const [advanceMinutes, setAdvanceMinutes] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -42,27 +40,22 @@ export const ReminderModal: React.FC<ReminderModalProps> = ({
       if (!dialog.open) {
         dialog.showModal();
       }
-      // Populate fields if editing
       if (reminderToEdit) {
         setTitle(reminderToEdit.title);
         setDescription(reminderToEdit.description || '');
         setDate(reminderToEdit.date);
         setTime(reminderToEdit.time);
         setPriority(reminderToEdit.priority);
-        setCategoryId(reminderToEdit.categoryId || '');
         setRecurrence(
           reminderToEdit.recurrence === 'CUSTOM' ? 'NONE' : reminderToEdit.recurrence
         );
-        setAdvanceMinutes(reminderToEdit.advanceMinutes || 0);
       } else {
         setTitle('');
         setDescription('');
         setDate(initialDate || todayKey);
         setTime('09:00');
         setPriority('MEDIUM');
-        setCategoryId(categories[0]?.id || '');
         setRecurrence('NONE');
-        setAdvanceMinutes(0);
       }
       setError('');
     } else {
@@ -70,9 +63,8 @@ export const ReminderModal: React.FC<ReminderModalProps> = ({
         dialog.close();
       }
     }
-  }, [isOpen, reminderToEdit, initialDate, categories, todayKey]);
+  }, [isOpen, reminderToEdit, initialDate, todayKey]);
 
-  // Light dismiss fallback: click outside dialog box closes modal
   const handleBackdropClick = (e: React.MouseEvent<HTMLDialogElement>) => {
     if (e.target === dialogRef.current) {
       onClose();
@@ -82,7 +74,7 @@ export const ReminderModal: React.FC<ReminderModalProps> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim()) {
-      setError('Por favor escribe el título del recordatorio.');
+      setError('Por favor escribe qué necesitas recordar.');
       return;
     }
 
@@ -96,9 +88,7 @@ export const ReminderModal: React.FC<ReminderModalProps> = ({
         date,
         time,
         priority,
-        categoryId: categoryId || null,
         recurrence,
-        advanceMinutes,
       };
 
       if (reminderToEdit) {
@@ -158,24 +148,8 @@ export const ReminderModal: React.FC<ReminderModalProps> = ({
             maxLength={200}
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            placeholder="Ej. Llamar al hospital"
-            className="w-full px-3.5 py-2.5 rounded-xl border border-[var(--line)] bg-[var(--surface-soft)] text-sm focus:border-[var(--site-primary)] outline-none transition-colors"
-          />
-        </div>
-
-        {/* Description */}
-        <div>
-          <label htmlFor="modal-description" className="block text-xs font-bold text-[var(--muted)] mb-1">
-            Notas o descripción adicional (opcional)
-          </label>
-          <textarea
-            id="modal-description"
-            rows={2}
-            maxLength={1000}
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            placeholder="Detalles, dirección o número de expediente..."
-            className="w-full px-3.5 py-2 rounded-xl border border-[var(--line)] bg-[var(--surface-soft)] text-sm focus:border-[var(--site-primary)] outline-none resize-none transition-colors"
+            placeholder="Ej. Reunión con el equipo"
+            className="w-full px-3.5 py-2.5 rounded-xl border border-[var(--line)] bg-[var(--surface-soft)] text-sm font-semibold focus:border-[var(--site-primary)] outline-none transition-colors"
           />
         </div>
 
@@ -210,7 +184,7 @@ export const ReminderModal: React.FC<ReminderModalProps> = ({
           </div>
         </div>
 
-        {/* Priority & Category Row */}
+        {/* Priority & Recurrence Row */}
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label htmlFor="modal-priority" className="flex items-center gap-1.5 text-xs font-bold text-[var(--muted)] mb-1">
@@ -229,30 +203,8 @@ export const ReminderModal: React.FC<ReminderModalProps> = ({
           </div>
 
           <div>
-            <label htmlFor="modal-category" className="flex items-center gap-1.5 text-xs font-bold text-[var(--muted)] mb-1">
-              <Tag className="w-3.5 h-3.5 text-[var(--site-primary)]" /> Categoría
-            </label>
-            <select
-              id="modal-category"
-              value={categoryId}
-              onChange={(e) => setCategoryId(e.target.value)}
-              className="w-full px-3 py-2 rounded-xl border border-[var(--line)] bg-[var(--surface-soft)] text-xs font-semibold focus:border-[var(--site-primary)] outline-none"
-            >
-              <option value="">Sin categoría</option>
-              {categories.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-
-        {/* Recurrence & Advance Alert Row */}
-        <div className="grid grid-cols-2 gap-3">
-          <div>
             <label htmlFor="modal-recurrence" className="flex items-center gap-1.5 text-xs font-bold text-[var(--muted)] mb-1">
-              <Repeat className="w-3.5 h-3.5 text-[var(--site-primary)]" /> Recurrencia
+              <Repeat className="w-3.5 h-3.5 text-[var(--site-primary)]" /> Repetir
             </label>
             <select
               id="modal-recurrence"
@@ -260,47 +212,44 @@ export const ReminderModal: React.FC<ReminderModalProps> = ({
               onChange={(e) => setRecurrence(e.target.value as any)}
               className="w-full px-3 py-2 rounded-xl border border-[var(--line)] bg-[var(--surface-soft)] text-xs font-semibold focus:border-[var(--site-primary)] outline-none"
             >
-              <option value="NONE">Sin repetición</option>
-              <option value="DAILY">Diaria (Todos los días)</option>
+              <option value="NONE">No repetir</option>
+              <option value="DAILY">Diario</option>
               <option value="WEEKDAYS">Lunes a Viernes</option>
               <option value="WEEKLY">Semanal</option>
               <option value="MONTHLY">Mensual</option>
-              <option value="YEARLY">Anual</option>
-            </select>
-          </div>
-
-          <div>
-            <label htmlFor="modal-advance" className="flex items-center gap-1.5 text-xs font-bold text-[var(--muted)] mb-1">
-              <BellRing className="w-3.5 h-3.5 text-[var(--site-primary)]" /> Anticipación de aviso
-            </label>
-            <select
-              id="modal-advance"
-              value={advanceMinutes}
-              onChange={(e) => setAdvanceMinutes(Number(e.target.value))}
-              className="w-full px-3 py-2 rounded-xl border border-[var(--line)] bg-[var(--surface-soft)] text-xs font-semibold focus:border-[var(--site-primary)] outline-none"
-            >
-              <option value={0}>A la hora exacta</option>
-              <option value={15}>15 minutos antes</option>
-              <option value={30}>30 minutos antes</option>
-              <option value={60}>1 hora antes</option>
-              <option value={1440}>1 día antes</option>
             </select>
           </div>
         </div>
 
+        {/* Description */}
+        <div>
+          <label htmlFor="modal-description" className="block text-xs font-bold text-[var(--muted)] mb-1">
+            Detalles o notas (opcional)
+          </label>
+          <textarea
+            id="modal-description"
+            rows={2}
+            maxLength={1000}
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder="Lugar, enlace o notas breves..."
+            className="w-full px-3.5 py-2 rounded-xl border border-[var(--line)] bg-[var(--surface-soft)] text-xs focus:border-[var(--site-primary)] outline-none resize-none transition-colors"
+          />
+        </div>
+
         {/* Buttons */}
-        <div className="flex items-center justify-end gap-3 pt-4 border-t border-[var(--line)]">
+        <div className="flex items-center justify-end gap-3 pt-3 border-t border-[var(--line)]">
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2.5 rounded-xl border border-[var(--line)] text-xs font-bold text-[var(--muted)] hover:bg-[var(--surface-soft)] transition-colors"
+            className="px-4 py-2 rounded-xl border border-[var(--line)] text-xs font-bold text-[var(--muted)] hover:bg-[var(--surface-soft)] transition-colors"
           >
             Cancelar
           </button>
           <button
             type="submit"
             disabled={loading}
-            className="px-5 py-2.5 rounded-xl bg-[var(--site-primary)] text-white text-xs font-extrabold shadow-md shadow-[var(--site-primary)]/20 hover:brightness-105 active:scale-98 transition-all"
+            className="px-5 py-2 rounded-xl bg-[var(--site-primary)] text-white text-xs font-extrabold shadow-md shadow-[var(--site-primary)]/20 hover:brightness-105 active:scale-98 transition-all"
           >
             {loading ? 'Guardando...' : reminderToEdit ? 'Guardar cambios' : 'Crear recordatorio'}
           </button>

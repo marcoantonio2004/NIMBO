@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useReminders } from '../context/ReminderContext';
+import { parseQuickReminder } from '../utils/parser';
 import { Plus, Sparkles, SlidersHorizontal } from 'lucide-react';
 
 interface QuickAddProps {
@@ -7,7 +8,7 @@ interface QuickAddProps {
 }
 
 export const QuickAdd: React.FC<QuickAddProps> = ({ onOpenFullModal }) => {
-  const { createReminder, categories } = useReminders();
+  const { createReminder } = useReminders();
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -17,67 +18,13 @@ export const QuickAdd: React.FC<QuickAddProps> = ({ onOpenFullModal }) => {
 
     try {
       setLoading(true);
-
-      let text = input.trim();
-      let priority: 'LOW' | 'MEDIUM' | 'HIGH' = 'MEDIUM';
-      let date = new Date().toISOString().split('T')[0];
-      let time = '09:00';
-      let categoryId: string | null = null;
-
-      // Priority match
-      const pMatch = text.match(/!(alta|urgente|high|media|med|medium|baja|low)\b/i);
-      if (pMatch) {
-        const p = pMatch[1].toLowerCase();
-        if (p === 'alta' || p === 'urgente' || p === 'high') priority = 'HIGH';
-        else if (p === 'baja' || p === 'low') priority = 'LOW';
-        text = text.replace(pMatch[0], ' ');
-      }
-
-      // Category match
-      const catMatch = text.match(/#([\wáéíóúñ]+)/i);
-      if (catMatch) {
-        const catName = catMatch[1].toLowerCase();
-        const found = categories.find((c) => c.name.toLowerCase() === catName);
-        if (found) categoryId = found.id;
-        text = text.replace(catMatch[0], ' ');
-      }
-
-      // Date match
-      if (/\bmañana\b/i.test(text)) {
-        const d = new Date();
-        d.setDate(d.getDate() + 1);
-        date = d.toISOString().split('T')[0];
-        text = text.replace(/\bmañana\b/gi, ' ');
-      } else if (/\bhoy\b/i.test(text)) {
-        date = new Date().toISOString().split('T')[0];
-        text = text.replace(/\bhoy\b/gi, ' ');
-      }
-
-      // Time match (e.g. 5pm, 14:30, a las 10am)
-      const tMatch = text.match(/\b(?:a\s+las\s+)?(\d{1,2})(?::(\d{2}))?\s*(am|pm)?\b/i);
-      if (tMatch) {
-        let h = parseInt(tMatch[1], 10);
-        const m = tMatch[2] ? parseInt(tMatch[2], 10) : 0;
-        const ampm = tMatch[3] ? tMatch[3].toLowerCase() : null;
-
-        if (ampm === 'pm' && h < 12) h += 12;
-        if (ampm === 'am' && h === 12) h = 0;
-
-        if (h >= 0 && h <= 23 && m >= 0 && m <= 59) {
-          time = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
-          text = text.replace(tMatch[0], ' ');
-        }
-      }
-
-      const title = text.replace(/\s+/g, ' ').trim();
-      if (!title) return;
+      const parsed = parseQuickReminder(input.trim());
 
       await createReminder({
-        title,
-        date,
-        time,
-        priority,
-        categoryId,
+        title: parsed.title,
+        date: parsed.date,
+        time: parsed.time,
+        priority: parsed.priority.toUpperCase(),
       });
 
       setInput('');
@@ -97,7 +44,7 @@ export const QuickAdd: React.FC<QuickAddProps> = ({ onOpenFullModal }) => {
           type="text"
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          placeholder="Creación rápida: ej. Llamar al médico mañana 10am #Salud !alta"
+          placeholder="Ej: Reunión a las 5 de la tarde el viernes..."
           className="flex-1 bg-transparent border-0 text-sm font-medium text-[var(--text)] placeholder-[var(--muted)]/70 focus:outline-none py-1.5"
         />
 
@@ -106,8 +53,8 @@ export const QuickAdd: React.FC<QuickAddProps> = ({ onOpenFullModal }) => {
             type="button"
             onClick={onOpenFullModal}
             className="p-2 rounded-xl text-[var(--muted)] hover:text-[var(--text)] hover:bg-[var(--surface-soft)] transition-colors"
-            title="Abrir formulario detallado"
-            aria-label="Abrir formulario detallado"
+            title="Formulario manual detallado"
+            aria-label="Formulario manual detallado"
           >
             <SlidersHorizontal className="w-4 h-4" />
           </button>
@@ -118,7 +65,7 @@ export const QuickAdd: React.FC<QuickAddProps> = ({ onOpenFullModal }) => {
             className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[var(--site-primary)] text-white text-xs font-extrabold shadow-sm shadow-[var(--site-primary)]/20 hover:brightness-105 active:scale-98 disabled:opacity-50 transition-all"
           >
             <Plus className="w-3.5 h-3.5 stroke-[3]" />
-            <span className="hidden sm:inline">Agregar</span>
+            <span className="hidden sm:inline">Guardar</span>
           </button>
         </div>
       </form>

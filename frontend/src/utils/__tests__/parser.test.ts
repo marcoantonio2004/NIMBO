@@ -15,18 +15,10 @@ describe('parseQuickReminder', () => {
     expect(resBaja.priority).toBe('low');
   });
 
-  it('extracts category hashtags', () => {
-    const res = parseQuickReminder('Enviar cotización #Trabajo !alta');
-    expect(res.category).toBe('Trabajo');
-    expect(res.priority).toBe('high');
-    expect(res.title).toBe('Enviar cotización');
-  });
-
   it('handles relative date keywords like mañana and hoy', () => {
-    const resManana = parseQuickReminder('Llamar al médico mañana 10:00 #Salud');
+    const resManana = parseQuickReminder('Llamar al médico mañana 10:00');
     expect(resManana.date).toBe(getTodayKey(1));
     expect(resManana.time).toBe('10:00');
-    expect(resManana.category).toBe('Salud');
     expect(resManana.title).toBe('Llamar al médico');
 
     const resHoy = parseQuickReminder('Reunión urgente hoy 14:30');
@@ -36,9 +28,15 @@ describe('parseQuickReminder', () => {
   });
 
   it('handles 12-hour am/pm times', () => {
-    const res = parseQuickReminder('Cita dental a las 4pm #Salud');
+    const res = parseQuickReminder('Cita dental a las 4pm');
     expect(res.time).toBe('16:00');
-    expect(res.category).toBe('Salud');
     expect(res.title).toBe('Cita dental');
+  });
+
+  it('parses "reunion a las 5 de la tarde el viernes" correctly', () => {
+    const res = parseQuickReminder('reunion a las 5 de la tarde el viernes');
+    expect(res.time).toBe('17:00');
+    expect(res.title).toBe('Reunion');
+    expect(res.date).toMatch(/^\d{4}-\d{2}-\d{2}$/);
   });
 });
