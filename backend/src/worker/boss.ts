@@ -9,7 +9,6 @@ export async function getBoss(): Promise<PgBoss> {
   if (!bossInstance) {
     bossInstance = new PgBoss({
       connectionString: env.DATABASE_URL,
-      // Retry policy and concurrency limits
       retryLimit: 3,
       retryDelay: 30, // seconds
       retryBackoff: true,
@@ -21,6 +20,8 @@ export async function getBoss(): Promise<PgBoss> {
     });
 
     await bossInstance.start();
+    // Ensure queue exists in pg-boss v10
+    await bossInstance.createQueue(REMINDER_QUEUE).catch(() => {});
     console.log('⚡ pg-boss queue initialized and running');
   }
 
@@ -34,7 +35,6 @@ export async function scheduleNotificationJob(
   try {
     const boss = await getBoss();
 
-    // If the reminder date is in the past or immediately due, schedule with immediate execution
     const now = new Date();
     const startAfter = scheduledDate > now ? scheduledDate : undefined;
 
@@ -43,10 +43,10 @@ export async function scheduleNotificationJob(
       { reminderId },
       {
         startAfter,
-        singletonKey: `reminder-${reminderId}`, // Idempotency: prevents duplicate queue entries
       }
     );
 
+    console.log(`[pg-boss] Job programado para recordatorio ${reminderId}: ID ${jobId} (ejecución: ${startAfter ? startAfter.toISOString() : 'inmediata'})`);
     return jobId;
   } catch (err) {
     console.error('Failed to schedule notification job with pg-boss:', err);
@@ -59,7 +59,6 @@ export async function cancelNotificationJob(jobId: string): Promise<void> {
     const boss = await getBoss();
     await boss.cancel(REMINDER_QUEUE, jobId);
   } catch (err) {
-    // If job already finished or doesn't exist, ignore
     console.warn(`Could not cancel job ${jobId}:`, err);
   }
 }

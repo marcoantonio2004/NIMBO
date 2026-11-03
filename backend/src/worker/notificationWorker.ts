@@ -3,7 +3,7 @@ import { prisma } from '../db/prisma';
 import { PushService } from '../modules/push/push.service';
 import { getNextRecurrenceDate, calculateScheduledTimestamp } from '../utils/time';
 
-async function startNotificationWorker() {
+export async function startNotificationWorker() {
   console.log('🚀 Iniciando NIMBO Notification Worker...');
 
   const boss = await getBoss();
@@ -127,7 +127,7 @@ const shutdown = async () => {
 process.on('SIGTERM', shutdown);
 process.on('SIGINT', shutdown);
 
-if (process.env.NODE_ENV !== 'test') {
+if (process.env.NODE_ENV !== 'test' && process.argv[1]?.includes('notificationWorker')) {
   startNotificationWorker().catch((err) => {
     console.error('Fallo crítico al iniciar el Notification Worker:', err);
     process.exit(1);

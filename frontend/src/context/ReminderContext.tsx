@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { api } from '../api/client';
 import { useAuth } from './AuthContext';
+import { useForegroundAlerts } from '../hooks/useForegroundAlerts';
 import confetti from 'canvas-confetti';
 
 export interface CategoryItem {
@@ -106,6 +107,9 @@ export const ReminderProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       refreshData();
     }
   }, [user, refreshData]);
+
+  // Audio and in-app alert when reminder is due in foreground
+  useForegroundAlerts(reminders);
 
   const createReminder = async (data: unknown): Promise<ReminderItemData> => {
     const res = await api.reminders.create(data);
