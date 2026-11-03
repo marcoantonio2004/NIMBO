@@ -1,0 +1,97 @@
+import React, { useState, useEffect } from 'react';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { AuthProvider, useAuth } from './context/AuthContext';
+import { ReminderProvider } from './context/ReminderContext';
+import { PushProvider } from './context/PushContext';
+
+import { Navbar } from './components/Navbar';
+import { DashboardPage } from './pages/DashboardPage';
+import { RemindersPage } from './pages/RemindersPage';
+import { CalendarPage } from './pages/CalendarPage';
+import { ChatAssistantPage } from './pages/ChatAssistantPage';
+import { HistoryPage } from './pages/HistoryPage';
+import { SettingsPage } from './pages/SettingsPage';
+import { LoginPage } from './pages/LoginPage';
+import { SetupOwnerPage } from './pages/SetupOwnerPage';
+
+const AppContent: React.FC = () => {
+  const { user, loading, setupCompleted } = useAuth();
+
+  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+    if (typeof window === 'undefined') return 'light';
+    const saved = localStorage.getItem('nimbo_theme');
+    if (saved === 'dark' || saved === 'light') return saved;
+    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  });
+
+  useEffect(() => {
+    const root = document.documentElement;
+    if (theme === 'dark') {
+      root.classList.add('dark');
+    } else {
+      root.classList.remove('dark');
+    }
+    localStorage.setItem('nimbo_theme', theme);
+  }, [theme]);
+
+  const toggleTheme = () => {
+    setTheme((prev) => (prev === 'light' ? 'dark' : 'light'));
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-[var(--site-background)] text-[var(--text)]">
+        <div className="w-12 h-12 rounded-2xl bg-[var(--site-primary)] text-white flex items-center justify-center font-black text-2xl shadow-xl shadow-[var(--site-primary)]/20 animate-pulse">
+          ✦
+        </div>
+        <div className="mt-4 font-black tracking-widest text-xs uppercase text-[var(--muted)]">
+          NIMBO
+        </div>
+      </div>
+    );
+  }
+
+  // 1. Initial Setup Guard
+  if (!setupCompleted) {
+    return <SetupOwnerPage />;
+  }
+
+  // 2. Authentication Guard
+  if (!user) {
+    return <LoginPage />;
+  }
+
+  // 3. Authenticated Owner App
+  return (
+    <ReminderProvider>
+      <PushProvider>
+        <div className="min-h-screen bg-[var(--site-background)] text-[var(--text)] flex flex-col">
+          <Navbar theme={theme} toggleTheme={toggleTheme} />
+          <main className="flex-1 pb-16">
+            <Routes>
+              <Route path="/" element={<DashboardPage />} />
+              <Route path="/reminders" element={<RemindersPage />} />
+              <Route path="/calendar" element={<CalendarPage />} />
+              <Route path="/assistant" element={<ChatAssistantPage />} />
+              <Route path="/history" element={<HistoryPage />} />
+              <Route path="/settings" element={<SettingsPage />} />
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+          </main>
+        </div>
+      </PushProvider>
+    </ReminderProvider>
+  );
+};
+
+export const App: React.FC = () => {
+  return (
+    <BrowserRouter>
+      <AuthProvider>
+        <AppContent />
+      </AuthProvider>
+    </BrowserRouter>
+  );
+};
+
+export default App;

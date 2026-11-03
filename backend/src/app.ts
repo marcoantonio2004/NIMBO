@@ -1,0 +1,65 @@
+import express from 'express';
+import cors from 'cors';
+import helmet from 'helmet';
+import cookieParser from 'cookie-parser';
+import { env } from './config/env';
+import { apiRateLimiter } from './middleware/rateLimit';
+import { errorHandler } from './middleware/errorHandler';
+
+import { authRouter } from './modules/auth/auth.router';
+import { remindersRouter } from './modules/reminders/reminders.router';
+import { categoriesRouter } from './modules/categories/categories.router';
+import { statsRouter } from './modules/stats/stats.router';
+import { pushRouter } from './modules/push/push.router';
+import { aiRouter } from './modules/ai/ai.router';
+
+export const app = express();
+
+app.use(
+  helmet({
+    contentSecurityPolicy: false, // For PWA asset flexibility
+    crossOriginEmbedderPolicy: false,
+  })
+);
+
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      // Allow requests with no origin (like mobile apps, curl, or same-origin)
+      if (!origin) return callback(null, true);
+      // In development allow localhost variations
+      if (env.NODE_ENV === 'development' || origin === env.FRONTEND_URL) {
+        return callback(null, true);
+      }
+      return callback(null, true); // Allow configured frontend
+    },
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+  })
+);
+
+app.use(cookieParser());
+app.use(express.json({ limit: '2mb' }));
+app.use('/api', apiRateLimiter);
+
+// Health check endpoint
+app.get('/api/health', (_req, res) => {
+  res.json({
+    status: 'ok',
+    app: 'NIMBO',
+    version: '1.0.0',
+    timestamp: new Date().toISOString(),
+  });
+});
+
+// Mount modular API routers
+app.use('/api/auth', authRouter);
+app.use('/api/reminders', remindersRouter);
+app.use('/api/categories', categoriesRouter);
+app.use('/api/stats', statsRouter);
+app.use('/api/push', pushRouter);
+app.use('/api/ai', aiRouter);
+
+// Global error handler
+app.use(errorHandler);

@@ -1,0 +1,143 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum ReminderStatus {
+  PENDING
+  COMPLETED
+  SNOOZED
+  OVERDUE
+}
+
+enum RecurrenceType {
+  NONE
+  DAILY
+  WEEKDAYS
+  WEEKLY
+  MONTHLY
+  YEARLY
+  CUSTOM
+}
+
+model User {
+  id           String             @id @default(uuid())
+  email        String             @unique
+  passwordHash String
+  name         String
+  timezone     String             @default("America/Mexico_City")
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+  sessions     Session[]
+  categories   Category[]
+  reminders    Reminder[]
+  devices      PushSubscription[]
+}
+
+model Session {
+  id           String   @id @default(uuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token        String   @unique
+  userAgent    String?
+  ipAddress    String?
+  expiresAt    DateTime
+  createdAt    DateTime @default(now())
+  lastActiveAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([token])
+}
+
+model Category {
+  id        String     @id @default(uuid())
+  userId    String
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name      String
+  color     String     @default("#176b55")
+  icon      String?
+  isDefault Boolean    @default(false)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  reminders Reminder[]
+
+  @@unique([userId, name])
+  @@index([userId])
+}
+
+model Reminder {
+  id                 String            @id @default(uuid())
+  userId             String
+  user               User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  categoryId         String?
+  category           Category?         @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  title              String
+  description        String?
+  date               String            // YYYY-MM-DD local date
+  time               String            // HH:mm local time (24h)
+  scheduledAt        DateTime          // Absolute timestamp in UTC calculated based on user's timezone
+  priority           Priority          @default(MEDIUM)
+  status             ReminderStatus    @default(PENDING)
+  recurrence         RecurrenceType    @default(NONE)
+  recurrenceInterval Int?
+  advanceMinutes     Int               @default(0) // Notification advance: 0 = at time, 15 = 15m before, etc.
+  completedAt        DateTime?
+  snoozedUntil       DateTime?
+  bossJobId          String?           // Reference to pg-boss scheduled job ID
+  tags               String[]          @default([])
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+  notificationLogs   NotificationLog[]
+
+  @@index([userId, status])
+  @@index([userId, date])
+  @@index([scheduledAt])
+}
+
+model PushSubscription {
+  id               String            @id @default(uuid())
+  userId           String
+  user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  endpoint         String            @unique
+  p256dh           String
+  auth             String
+  userAgent        String?
+  deviceName       String?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  notificationLogs NotificationLog[]
+
+  @@index([userId])
+}
+
+model NotificationLog {
+  id             String            @id @default(uuid())
+  reminderId     String?
+  reminder       Reminder?         @relation(fields: [reminderId], references: [id], onDelete: SetNull)
+  subscriptionId String?
+  subscription   PushSubscription? @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
+  title          String
+  body           String
+  status         String            // SENT, FAILED, EXPIRED
+  error          String?
+  sentAt         DateTime          @default(now())
+
+  @@index([reminderId])
+  @@index([subscriptionId])
+}
+
+model AppSetting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+}
