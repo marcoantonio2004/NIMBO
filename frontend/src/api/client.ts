@@ -17,6 +17,13 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
     'Content-Type': 'application/json',
   };
 
+  if (typeof window !== 'undefined') {
+    const customKey = localStorage.getItem('nimbo_gemini_key');
+    if (customKey) {
+      defaultHeaders['x-gemini-key'] = customKey.trim();
+    }
+  }
+
   const response = await fetch(url, {
     ...options,
     credentials: 'include', // Includes HttpOnly session cookie
@@ -164,6 +171,12 @@ export const api = {
 
   // AI Assistant
   ai: {
+    status: () =>
+      request<{
+        success: boolean;
+        hasGeminiKey: boolean;
+        activeEngine: string;
+      }>('/api/ai/status'),
     greeting: () =>
       request<{
         success: boolean;
@@ -172,13 +185,20 @@ export const api = {
         overdueEventsCount: number;
         totalPendingCount: number;
       }>('/api/ai/greeting'),
-    chat: (message: string, history: Array<{ role: string; content: string }> = []) =>
-      request<{ success: boolean; response: string; toolExecuted?: string; toolResult?: any }>(
-        '/api/ai/chat',
-        {
-          method: 'POST',
-          body: JSON.stringify({ message, history }),
-        }
-      ),
+    chat: (
+      message: string,
+      history: Array<{ role: string; content: string }> = [],
+      apiKey?: string
+    ) =>
+      request<{
+        success: boolean;
+        response: string;
+        toolExecuted?: string;
+        toolResult?: any;
+        aiModelUsed?: string;
+      }>('/api/ai/chat', {
+        method: 'POST',
+        body: JSON.stringify({ message, history, apiKey }),
+      }),
   },
 };

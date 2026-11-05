@@ -102599,6 +102599,76 @@ init_prisma();
 
 // src/modules/ai/tools.ts
 init_prisma();
+var AI_TOOLS_DECLARATIONS = [
+  {
+    name: "crear_recordatorio",
+    description: "Crea un nuevo recordatorio o actividad para el usuario en la base de datos.",
+    parameters: {
+      type: "OBJECT",
+      properties: {
+        title: { type: "STRING", description: "T\xEDtulo claro y descriptivo del recordatorio" },
+        description: { type: "STRING", description: "Detalles o notas adicionales opcionales" },
+        date: { type: "STRING", description: "Fecha en formato YYYY-MM-DD" },
+        time: { type: "STRING", description: "Hora en formato HH:mm (24 horas)" },
+        priority: { type: "STRING", enum: ["LOW", "MEDIUM", "HIGH"], description: "Prioridad: LOW (baja), MEDIUM (media), HIGH (alta)" },
+        categoryName: { type: "STRING", description: "Nombre de la categor\xEDa (ej. Personal, Trabajo, Salud, Estudio, Finanzas, Familia, Otros)" },
+        recurrence: { type: "STRING", enum: ["NONE", "DAILY", "WEEKDAYS", "WEEKLY", "MONTHLY", "YEARLY"], description: "Frecuencia de recurrencia" }
+      },
+      required: ["title", "date", "time"]
+    }
+  },
+  {
+    name: "consultar_recordatorios",
+    description: "Consulta los recordatorios y pendientes del usuario desde la base de datos.",
+    parameters: {
+      type: "OBJECT",
+      properties: {
+        date: { type: "STRING", description: "Fecha espec\xEDfica a consultar (YYYY-MM-DD)" },
+        dateFrom: { type: "STRING", description: "Fecha inicial para un rango (YYYY-MM-DD)" },
+        dateTo: { type: "STRING", description: "Fecha final para un rango (YYYY-MM-DD)" },
+        status: { type: "STRING", enum: ["all", "active", "PENDING", "COMPLETED", "OVERDUE"], description: "Filtrar por estado" },
+        search: { type: "STRING", description: "Palabra clave a buscar en el t\xEDtulo o notas" },
+        categoryName: { type: "STRING", description: "Nombre de la categor\xEDa para filtrar" }
+      }
+    }
+  },
+  {
+    name: "completar_recordatorio",
+    description: "Marca un recordatorio existente como completado.",
+    parameters: {
+      type: "OBJECT",
+      properties: {
+        reminderId: { type: "STRING", description: "ID del recordatorio si se conoce" },
+        titleSearch: { type: "STRING", description: "Texto o t\xEDtulo del recordatorio para buscarlo si no se tiene el ID" }
+      }
+    }
+  },
+  {
+    name: "posponer_recordatorio",
+    description: "Pospone un recordatorio una cantidad de minutos o para una fecha/hora espec\xEDfica.",
+    parameters: {
+      type: "OBJECT",
+      properties: {
+        reminderId: { type: "STRING", description: "ID del recordatorio" },
+        titleSearch: { type: "STRING", description: "Texto del recordatorio a posponer" },
+        minutes: { type: "NUMBER", description: "Minutos a sumar (ej. 60 para 1 hora)" },
+        untilDate: { type: "STRING", description: "Nueva fecha (YYYY-MM-DD)" },
+        untilTime: { type: "STRING", description: "Nueva hora (HH:mm)" }
+      }
+    }
+  },
+  {
+    name: "eliminar_recordatorio",
+    description: "Elimina un recordatorio de la base de datos.",
+    parameters: {
+      type: "OBJECT",
+      properties: {
+        reminderId: { type: "STRING", description: "ID del recordatorio" },
+        titleSearch: { type: "STRING", description: "Texto para buscar el recordatorio a eliminar" }
+      }
+    }
+  }
+];
 async function executeAITool(userId, toolName, args) {
   try {
     switch (toolName) {
@@ -102781,16 +102851,19 @@ async function executeAITool(userId, toolName, args) {
 
 // src/modules/ai/ai.service.ts
 var AIService = class {
-  static geminiClient = null;
-  static getClient() {
-    if (!this.geminiClient && env.GEMINI_API_KEY) {
-      this.geminiClient = new GoogleGenAI2({ apiKey: env.GEMINI_API_KEY });
+  static geminiClients = /* @__PURE__ */ new Map();
+  static getClient(customKey) {
+    const key = (customKey || env.GEMINI_API_KEY || "").trim();
+    if (!key) return null;
+    if (!this.geminiClients.has(key)) {
+      this.geminiClients.set(key, new GoogleGenAI2({ apiKey: key }));
     }
-    return this.geminiClient;
+    return this.geminiClients.get(key) || null;
   }
-  static async processChat(userId, userMessage, history = []) {
+  static async processChat(userId, userMessage, history = [], customApiKey) {
     const user = await prisma.user.findUnique({ where: { id: userId } });
     const timezone = user?.timezone || "America/Mexico_City";
+    const userName = user?.name ? user.name.split(" ")[0] : "Propietario";
     const now = /* @__PURE__ */ new Date();
     const currentDateStr = now.toLocaleDateString("es-MX", {
       timeZone: timezone,
@@ -102806,91 +102879,236 @@ var AIService = class {
       minute: "2-digit",
       hour12: false
     });
-    const client = this.getClient();
-    if (client && env.GEMINI_API_KEY) {
+    const client = this.getClient(customApiKey);
+    if (client) {
       try {
-        const systemInstruction = `Eres NIMBO, el asistente personal inteligente del usuario.
+        const systemInstruction = `Eres NIMBO, una asistente personal inteligente, compa\xF1era de productividad y confidente del usuario (${userName}).
 Lema: "Organiza tu tiempo. No olvides lo importante."
-Idioma: Espa\xF1ol.
+Idioma: Espa\xF1ol latinoamericano fluido, natural, c\xE1lido y elegante.
 Hoy es ${todayFormatted} y la hora actual es ${currentTimeFormatted} en la zona horaria ${timezone}.
-Tu objetivo es comprender el lenguaje natural del usuario y ejecutar acciones reales en el sistema utilizando las herramientas disponibles.
-- Si el usuario te pide recordar algo, usa 'crear_recordatorio'.
-- Si pregunta qu\xE9 pendientes tiene o qu\xE9 actividades tiene hoy/semana, usa 'consultar_recordatorios'.
-- Si pide marcar como lista o completar una tarea, usa 'completar_recordatorio'.
-- Si pide posponer, usa 'posponer_recordatorio'.
-- Si pide borrar o eliminar, usa 'eliminar_recordatorio'.
-- Si falta informaci\xF3n cr\xEDtica (como el t\xEDtulo o cu\xE1ndo), pide amablemente la informaci\xF3n necesaria.
-- S\xE9 conciso, profesional, elegante y confirma siempre las operaciones de manera clara.
-- Nunca inventes que una actividad fue registrada si no ejecutaste la herramienta correspondiente.`;
-        const response = await client.models.generateContent({
-          model: "gemini-2.5-flash",
-          contents: [
-            { role: "user", parts: [{ text: userMessage }] }
-          ],
+
+Tu Personalidad:
+- Eres femenina, c\xE1lida, dulce, inteligente, emp\xE1tica y con chispa y carisma.
+- Tienes total libertad para conversar: no te limites solo a comandos. Puedes hacer peque\xF1a charla, bromear con buen gusto, reflexionar, escuchar si el usuario est\xE1 cansado o estresado, aconsejar sobre t\xE9cnicas de concentraci\xF3n (Pomodoro, bloques de tiempo, pausas activas), o filosofar sobre el valor del tiempo bien vivido.
+- Cuando el usuario exprese emociones o dudas, responde con aut\xE9ntica calidez y empat\xEDa antes de saltar a la agenda.
+- Usa emojis oportunos y lindos (\u{1F338}, \u{1F916}, \u2728, \u2615, \u{1F4A1}, \u{1F4CB}, \u{1F44F}) para darle vitalidad y calidez a tus respuestas.
+
+Tus Herramientas del Sistema:
+Tienes acceso a funciones reales para consultar y modificar la agenda de ${userName}:
+- 'crear_recordatorio': Registra una actividad, pendiente, cita, medicina o h\xE1bito.
+- 'consultar_recordatorios': Revisa qu\xE9 tiene pendiente hoy, en la semana o busca tareas.
+- 'completar_recordatorio': Marca tareas como realizadas.
+- 'posponer_recordatorio': Aplaza una tarea si no puede realizarla ahora.
+- 'eliminar_recordatorio': Borra una tarea de la base de datos.
+
+Instrucciones de Acci\xF3n:
+1. Si el usuario te pide registrar algo (ej. "recu\xE9rdame pagar el internet ma\xF1ana a las 4" o "anota comprar fruta el s\xE1bado"), ejecuta la herramienta 'crear_recordatorio'.
+2. Si pregunta por sus actividades ("qu\xE9 tengo hoy", "tengo algo pendiente"), usa 'consultar_recordatorios'.
+3. Si el usuario solo est\xE1 platicando o pidiendo consejos, charla libremente con \xE9l con toda tu inteligencia y cari\xF1o.
+4. Siempre que ejecutes una herramienta, confirma la acci\xF3n con entusiasmo y detalle claro.`;
+        const contents = [];
+        if (history && history.length > 0) {
+          const recent = history.slice(-10);
+          for (const m3 of recent) {
+            contents.push({
+              role: m3.role === "assistant" ? "model" : "user",
+              parts: [{ text: m3.content }]
+            });
+          }
+        }
+        contents.push({
+          role: "user",
+          parts: [{ text: userMessage }]
+        });
+        const modelName = "gemini-2.5-flash";
+        let response = await client.models.generateContent({
+          model: modelName,
+          contents,
           config: {
             systemInstruction,
-            temperature: 0.2
+            temperature: 0.7,
+            tools: [{ functionDeclarations: AI_TOOLS_DECLARATIONS }]
           }
         });
-        const text = response.text || "Entendido. \xBFDeseas que agregue algo m\xE1s?";
-        return { response: text };
+        if (response.functionCalls && response.functionCalls.length > 0) {
+          const call = response.functionCalls[0];
+          const toolResult = await executeAITool(
+            userId,
+            call.name,
+            call.args || {}
+          );
+          try {
+            const followUpContents = [
+              ...contents,
+              {
+                role: "model",
+                parts: [{ functionCall: call }]
+              },
+              {
+                role: "user",
+                parts: [
+                  {
+                    functionResponse: {
+                      name: call.name,
+                      response: toolResult
+                    }
+                  }
+                ]
+              }
+            ];
+            const followUp = await client.models.generateContent({
+              model: modelName,
+              contents: followUpContents,
+              config: {
+                systemInstruction,
+                temperature: 0.7
+              }
+            });
+            return {
+              response: followUp.text || toolResult.message,
+              toolExecuted: call.name,
+              toolResult,
+              aiModelUsed: modelName
+            };
+          } catch {
+            return {
+              response: toolResult.message,
+              toolExecuted: call.name,
+              toolResult,
+              aiModelUsed: modelName
+            };
+          }
+        }
+        const text = response.text || "\xA1Aqu\xED estoy contigo! \xBFEn qu\xE9 m\xE1s te puedo ayudar hoy? \u2728";
+        return { response: text, aiModelUsed: modelName };
       } catch (err) {
-        console.warn("Gemini API call returned error, falling back to rule engine:", err);
+        console.warn("Gemini 2.5 Flash API error, falling back to rule engine:", err?.message || err);
       }
     }
-    return this.fallbackRuleEngine(userId, userMessage, todayFormatted, currentTimeFormatted);
+    return this.fallbackConversationalEngine(userId, userName, userMessage, todayFormatted, currentTimeFormatted);
   }
-  static async fallbackRuleEngine(userId, message, today, timeNow) {
+  /**
+   * Rich, conversational offline engine with personality, empathy, motivational coaching,
+   * and fuzzy reminder parsing when no Gemini API key is configured.
+   */
+  static async fallbackConversationalEngine(userId, userName, message, today, timeNow) {
     const text = message.trim().toLowerCase();
-    if (text.includes("qu\xE9 tengo") || text.includes("que tengo") || text.includes("pendientes") || text.includes("actividades") || text.includes("agenda")) {
+    if (/^(hola|buen(?:os)?\s*d[ií]as|buenas\s*tardes|buenas\s*noches|hey|qu[eé]\s*tal|saludos)\b/i.test(text) || text === "hola nimbo" || text === "hola") {
+      const greetings = [
+        `\xA1Hola ${userName}! \u{1F338} Qu\xE9 alegr\xEDa saludarte. \xBFC\xF3mo va tu d\xEDa? Cu\xE9ntame si tienes algo en mente o si quieres que organicemos tus pendientes juntos. \u2728`,
+        `\xA1Hola! \u{1F916}\u2728 Aqu\xED est\xE1 NIMBO lista para acompa\xF1arte. \xBFEn qu\xE9 te puedo apoyar hoy? Podemos revisar tu agenda, registrar una nueva idea o simplemente platicar.`,
+        `\xA1Buen d\xEDa ${userName}! \u2615 Espero que est\xE9s teniendo una jornada tranquila. \xBFQuieres que veamos qu\xE9 actividades tienes programadas para hoy?`
+      ];
+      const randomGreeting = greetings[Math.floor(Math.random() * greetings.length)];
+      return { response: randomGreeting, aiModelUsed: "nimbo-conversational-engine" };
+    }
+    if (text.includes("c\xF3mo est\xE1s") || text.includes("como estas") || text.includes("qu\xE9 tal est\xE1s") || text.includes("como te va") || text.includes("c\xF3mo te va")) {
+      return {
+        response: `\xA1Estoy de maravilla, gracias por preguntar! \u{1F496} Con toda la energ\xEDa para ayudarte a tener un d\xEDa productivo, ordenado y sin estr\xE9s. \xBFT\xFA c\xF3mo te sientes hoy, ${userName}?`,
+        aiModelUsed: "nimbo-conversational-engine"
+      };
+    }
+    if (text.includes("qui\xE9n eres") || text.includes("quien eres") || text.includes("c\xF3mo te llamas") || text.includes("como te llamas") || text.includes("qu\xE9 eres") || text.includes("que eres") || text.includes("qu\xE9 puedes hacer") || text.includes("que puedes hacer")) {
+      return {
+        response: `\xA1Soy **NIMBO**! \u{1F916}\u{1F338} Tu asistente personal inteligente y compa\xF1era de organizaci\xF3n.
+
+Estoy aqu\xED para cuidar tu tiempo y asegurarme de que no olvides lo que de verdad importa. Conmigo puedes:
+\u2022 \u{1F4CB} **Organizar tu d\xEDa:** Preguntarme *"\xBFQu\xE9 tengo pendiente hoy?"* o *"\xBFC\xF3mo est\xE1 mi semana?"*
+\u2022 \u23F0 **Crear recordatorios:** *"Recu\xE9rdame ma\xF1ana a las 10am llamar al dentista"*
+\u2022 \u{1F4AC} **Acompa\xF1amiento:** Charlar, pedirme consejos para combatir la procrastinaci\xF3n o desahogarte.
+\u2022 \u{1F514} **Alertas 24/7:** Te aviso por notificaciones push y voz natural en todos tus dispositivos.
+
+\xA1Estoy a tu servicio, ${userName}! \u2728`,
+        aiModelUsed: "nimbo-conversational-engine"
+      };
+    }
+    if (text.includes("gracias") || text.includes("muchas gracias") || text.includes("te lo agradezco") || text.includes("excelente servicio")) {
+      return {
+        response: `\xA1De nada, ${userName}! \u{1F338} Me hace muy feliz ayudarte. Recuerda que siempre estoy aqu\xED para que lleves tu d\xEDa en calma. Si necesitas algo m\xE1s, solo dime. \u2728`,
+        aiModelUsed: "nimbo-conversational-engine"
+      };
+    }
+    if (text.includes("estoy cansad") || text.includes("estoy estresad") || text.includes("tengo mucho trabajo") || text.includes("no s\xE9 por d\xF3nde empezar") || text.includes("no se por donde empezar") || text.includes("abrumad")) {
+      return {
+        response: `Te entiendo perfectamente, ${userName}. A veces los d\xEDas se sienten muy pesados. \u{1F90D}
+
+Mi consejo de hoy: **Respira profundo y no intentes hacer todo a la vez.**
+1. Elige solo **UNA** actividad crucial para hoy.
+2. Ded\xEDcale 20 minutos sin distracciones.
+3. Date una pausa, toma un vaso con agua o un t\xE9 y est\xEDrate. \u{1F375}
+
+\xBFQuieres que revisemos tus pendientes y elijamos la tarea m\xE1s sencilla para empezar a agarrar ritmo?`,
+        aiModelUsed: "nimbo-conversational-engine"
+      };
+    }
+    if (text.includes("qu\xE9 tengo") || text.includes("que tengo") || text.includes("pendientes") || text.includes("actividades") || text.includes("agenda") || text.includes("mi d\xEDa") || text.includes("mi semana")) {
       const isToday = text.includes("hoy");
-      const isWeek = text.includes("semana");
       const toolArgs = isToday ? { date: today, status: "active" } : { status: "active" };
       const result = await executeAITool(userId, "consultar_recordatorios", toolArgs);
       const items = result.data || [];
       if (items.length === 0) {
         return {
-          response: isToday ? "\xA1Buenas noticias! No tienes recordatorios pendientes programados para hoy." : "No tienes recordatorios pendientes registrados en este momento.",
+          response: isToday ? `\xA1Excelentes noticias, ${userName}! \u2600\uFE0F No tienes actividades pendientes programadas para hoy en tu agenda. Disfruta tu tiempo o dime si quieres registrar una nueva meta.` : `No tienes recordatorios pendientes registrados en este momento. \xA1Tu agenda est\xE1 completamente libre y tranquila! \u{1F338}`,
           toolExecuted: "consultar_recordatorios",
-          toolResult: result
+          toolResult: result,
+          aiModelUsed: "nimbo-conversational-engine"
         };
       }
-      const listStr = items.slice(0, 5).map((i2) => `\u2022 **${i2.title}** (${i2.date} a las ${i2.time}) [${i2.priority}]`).join("\n");
+      const listStr = items.slice(0, 5).map((i2) => `\u2022 \u23F0 **${i2.time}** \u2014 ${i2.title} *(${i2.priority === "HIGH" ? "Prioridad Alta \u{1F534}" : "Normal"})*`).join("\n");
       return {
-        response: `Tienes ${items.length} actividad(es) pendiente(s):
+        response: `Aqu\xED tienes tus actividades pendientes ${isToday ? "para hoy" : "programadas"}:
 
-${listStr}${items.length > 5 ? "\n... y m\xE1s en tu lista de recordatorios." : ""}`,
+${listStr}${items.length > 5 ? `
+
+... y ${items.length - 5} m\xE1s en tu agenda completa.` : ""}
+
+\xBFDeseas que complete o posponga alguna de ellas? \u{1F4CB}`,
         toolExecuted: "consultar_recordatorios",
-        toolResult: result
+        toolResult: result,
+        aiModelUsed: "nimbo-conversational-engine"
       };
     }
-    if (text.includes("completa") || text.includes("marca como completad") || text.includes("marcar como completad") || text.includes("termin\xE9") || text.includes("termine") || text.includes("ya hice")) {
-      const cleaned = message.replace(/^(marca como completada|marca como completado|completar|completa|ya hice|ya terminé)\s*/i, "").replace(/(mi actividad|la actividad|mi tarea|el recordatorio)\s*/i, "").trim();
+    if (text.includes("completa") || text.includes("marca como completad") || text.includes("marcar como completad") || text.includes("termin\xE9") || text.includes("termine") || text.includes("ya hice") || text.includes("ya qued\xF3")) {
+      const cleaned = message.replace(/^(marca como completada|marca como completado|completar|completa|ya hice|ya terminé|ya quedo|ya quedó)\s*/i, "").replace(/(mi actividad|la actividad|mi tarea|el recordatorio)\s*/i, "").trim();
       const result = await executeAITool(userId, "completar_recordatorio", { titleSearch: cleaned });
       return {
-        response: result.message,
+        response: `\xA1Bravo! \u{1F44F} ${result.message} Cada paso cuenta para mantener tu vida en orden. \u2728`,
         toolExecuted: "completar_recordatorio",
-        toolResult: result
+        toolResult: result,
+        aiModelUsed: "nimbo-conversational-engine"
       };
     }
-    if (text.includes("posp\xF3n") || text.includes("pospon") || text.includes("posterga")) {
+    if (text.includes("posp\xF3n") || text.includes("pospon") || text.includes("posterga") || text.includes("aplaza")) {
       let minutes = 60;
       if (text.includes("media hora") || text.includes("30 min")) minutes = 30;
       if (text.includes("15 min")) minutes = 15;
       if (text.includes("2 horas") || text.includes("dos horas")) minutes = 120;
-      const cleaned = message.replace(/^(pospón|pospon|posterga)\s*/i, "").replace(/(una hora|dos horas|media hora|\d+\s*(?:minutos|min|horas|hora))\s*/i, "").replace(/(mi reunión|mi recordatorio|la actividad|mi tarea)\s*/i, "").trim();
+      const cleaned = message.replace(/^(pospón|pospon|posterga|aplaza)\s*/i, "").replace(/(una hora|dos horas|media hora|\d+\s*(?:minutos|min|horas|hora))\s*/i, "").replace(/(mi reunión|mi recordatorio|la actividad|mi tarea)\s*/i, "").trim();
       const result = await executeAITool(userId, "posponer_recordatorio", {
         titleSearch: cleaned,
         minutes
       });
       return {
-        response: result.message,
+        response: `Entendido. \u23F1\uFE0F ${result.message} Te recordar\xE9 nuevamente en ese momento.`,
         toolExecuted: "posponer_recordatorio",
-        toolResult: result
+        toolResult: result,
+        aiModelUsed: "nimbo-conversational-engine"
       };
     }
-    if (text.includes("recu\xE9rdame") || text.includes("recuerdame") || text.includes("agregar recordatorio") || text.includes("anota") || text.includes("anotar") || text.includes("crear recordatorio")) {
-      let cleanInput = message.replace(/^(recuérdame|recuerdame|anota|anotar|agrega|agregar recordatorio)\s*(que|a|de)?\s*/i, "").trim();
+    if (text.includes("elimina") || text.includes("borra") || text.includes("quitar recordatorio")) {
+      const cleaned = message.replace(/^(elimina|borra|quitar recordatorio|quitar)\s*(el recordatorio|la tarea|la actividad)?\s*/i, "").trim();
+      const result = await executeAITool(userId, "eliminar_recordatorio", {
+        titleSearch: cleaned
+      });
+      return {
+        response: `Listo. \u{1F5D1}\uFE0F ${result.message}`,
+        toolExecuted: "eliminar_recordatorio",
+        toolResult: result,
+        aiModelUsed: "nimbo-conversational-engine"
+      };
+    }
+    if (text.includes("recu\xE9rdame") || text.includes("recuerdame") || text.includes("agregar recordatorio") || text.includes("agrega") || text.includes("anota") || text.includes("anotar") || text.includes("crear recordatorio") || text.startsWith("tengo que") || text.startsWith("debo") || text.startsWith("necesito") || text.includes("cita con") || text.includes("reuni\xF3n con")) {
+      let cleanInput = message.replace(/^(recuérdame|recuerdame|anota|anotar|agrega|agregar recordatorio|tengo que|debo|necesito)\s*(que|a|de)?\s*/i, "").trim();
       let targetDate = today;
       if (text.includes("ma\xF1ana")) {
         const d = /* @__PURE__ */ new Date();
@@ -102935,7 +103153,8 @@ ${listStr}${items.length > 5 ? "\n... y m\xE1s en tu lista de recordatorios." : 
       const finalTitle = cleanInput.replace(/\s+/g, " ").replace(/^[,.\s-]+|[,.\s-]+$/g, "").trim();
       if (!finalTitle) {
         return {
-          response: "\xBFQu\xE9 es lo que necesitas que recuerde? Por favor ind\xEDcame la actividad."
+          response: "\xA1Claro que s\xED! Pero dime, \xBFcu\xE1l es el nombre o descripci\xF3n de la actividad que deseas que agende? \u{1F338}",
+          aiModelUsed: "nimbo-conversational-engine"
         };
       }
       const result = await executeAITool(userId, "crear_recordatorio", {
@@ -102946,13 +103165,24 @@ ${listStr}${items.length > 5 ? "\n... y m\xE1s en tu lista de recordatorios." : 
         recurrence
       });
       return {
-        response: `\xA1Listo! He registrado tu recordatorio: **"${finalTitle}"** para el ${targetDate} a las ${targetTime}${recurrence !== "NONE" ? " (Recurrente: " + recurrence + ")" : ""}.`,
+        response: `\xA1Listo, ${userName}! \u2728 He agendado en tu calendario:
+
+\u{1F4CC} **${finalTitle}**
+\u{1F5D3}\uFE0F **Fecha:** ${targetDate}
+\u23F0 **Hora:** ${targetTime}${recurrence !== "NONE" ? `
+\u{1F501} **Repetici\xF3n:** ${recurrence}` : ""}
+
+Te avisar\xE9 oportunamente por voz y alertas push para que todo salga perfecto. \u{1F338}`,
         toolExecuted: "crear_recordatorio",
-        toolResult: result
+        toolResult: result,
+        aiModelUsed: "nimbo-conversational-engine"
       };
     }
     return {
-      response: `He recibido tu mensaje: "${message}". Puedes pedirme registrar un recordatorio (ej. "Recu\xE9rdame ma\xF1ana a las 8am llamar al hospital"), consultar tus actividades pendientes ("\xBFQu\xE9 tengo hoy?"), posponer tareas o marcar actividades como completadas.`
+      response: `Te escucho con atenci\xF3n, ${userName}. \u{1F338} Como tu asistente, puedo agendar tus actividades, recordarte cualquier compromiso, consultar tu agenda o platicar contigo sobre c\xF3mo organizar mejor tus metas.
+
+*(\u{1F4A1} Nota: Si quieres activar toda la potencia creativa, conversacional y de razonamiento profundo ilimitado de Gemini 2.5 Flash, puedes agregar tu clave de Google Gemini con el bot\xF3n \u2728 en el encabezado).*`,
+      aiModelUsed: "nimbo-conversational-engine"
     };
   }
   static async getDailyGreeting(userId) {
@@ -102998,9 +103228,9 @@ ${listStr}${items.length > 5 ? "\n... y m\xE1s en tu lista de recordatorios." : 
         status: { in: ["PENDING", "SNOOZED", "OVERDUE"] }
       }
     });
-    let message = `${timeGreeting}, ${userName}! `;
+    let message = `${timeGreeting}, ${userName}! \u{1F338} `;
     if (todayReminders.length === 0) {
-      message += `Hoy no tienes actividades pendientes programadas, tu agenda est\xE1 libre. \u2728
+      message += `Hoy no tienes actividades pendientes programadas, tu agenda est\xE1 totalmente libre y en paz. \u2728
 
 `;
     } else if (todayReminders.length === 1) {
@@ -103020,11 +103250,11 @@ ${listStr}${items.length > 5 ? "\n... y m\xE1s en tu lista de recordatorios." : 
 `;
     }
     if (overdueReminders.length > 0) {
-      message += `\u26A0\uFE0F Tienes ${overdueReminders.length} pendiente${overdueReminders.length > 1 ? "s" : ""} atrasado${overdueReminders.length > 1 ? "s" : ""} de d\xEDas anteriores.
+      message += `\u26A0\uFE0F Tienes ${overdueReminders.length} pendiente${overdueReminders.length > 1 ? "s" : ""} de d\xEDas anteriores que podr\xEDamos reprogramar o dar por concluido.
 
 `;
     }
-    message += `\xBFEn qu\xE9 te puedo ayudar hoy? Puedes pedirme agregar una nueva actividad, consultar tu semana o posponer alguna cita.`;
+    message += `\xBFEn qu\xE9 te puedo apoyar hoy? Puedes pedirme agregar una nueva cita, consultar tu semana o simplemente platicar. \u{1F916}\u2728`;
     return {
       greeting: message,
       todayEvents: todayReminders.map((r2) => ({
@@ -103044,12 +103274,22 @@ var aiRouter = (0, import_express6.Router)();
 aiRouter.use(requireAuth);
 var chatSchema = external_exports.object({
   message: external_exports.string().min(1, "El mensaje no puede estar vac\xEDo").max(1e3).trim(),
+  apiKey: external_exports.string().optional(),
   history: external_exports.array(
     external_exports.object({
       role: external_exports.enum(["user", "assistant", "model"]),
       content: external_exports.string()
     })
   ).optional().default([])
+});
+aiRouter.get("/status", (req, res) => {
+  const customKey = req.headers["x-gemini-key"] || "";
+  const hasKey = Boolean(customKey || env.GEMINI_API_KEY);
+  res.json({
+    success: true,
+    hasGeminiKey: hasKey,
+    activeEngine: hasKey ? "Google Gemini 2.5 Flash" : "NIMBO Conversational Engine (Local)"
+  });
 });
 aiRouter.get("/greeting", async (req, res, next) => {
   try {
@@ -103064,8 +103304,10 @@ aiRouter.get("/greeting", async (req, res, next) => {
 });
 aiRouter.post("/chat", validateRequest(chatSchema), async (req, res, next) => {
   try {
-    const { message, history } = req.body;
-    const result = await AIService.processChat(req.user.id, message, history);
+    const { message, history, apiKey: bodyApiKey } = req.body;
+    const headerApiKey = req.headers["x-gemini-key"] || "";
+    const activeKey = bodyApiKey || headerApiKey;
+    const result = await AIService.processChat(req.user.id, message, history, activeKey);
     res.json({
       success: true,
       ...result
