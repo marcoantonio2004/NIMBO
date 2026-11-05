@@ -14,14 +14,15 @@
     <meta name="application-name" content="Nimbo" />
     <meta name="description" content="NIMBO - Asistente personal inteligente de organización, agenda y recordatorios." />
     
-    <!-- Icons -->
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
-    <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png" />
-    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+    <!-- Icons with cache busting -->
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg?v=bot2" />
+    <link rel="shortcut icon" href="/favicon.ico?v=bot2" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png?v=bot2" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png?v=bot2" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=bot2" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png?v=bot2" />
     
-    <link rel="manifest" href="/manifest.json" />
+    <link rel="manifest" href="/manifest.json?v=bot2" />
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
@@ -46,6 +47,7 @@
           navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' })
             .then((reg) => {
               console.log('✓ NIMBO Service Worker registrado con éxito:', reg.scope);
+              reg.update();
             })
             .catch((err) => {
               console.warn('Fallo al registrar Service Worker:', err);

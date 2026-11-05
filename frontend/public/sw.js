@@ -1,9 +1,10 @@
 // NIMBO Service Worker — Web Push 24/7, Speech Alerts & Offline Shell Cache
-const CACHE_NAME = 'nimbo-shell-v3';
+const CACHE_NAME = 'nimbo-shell-v4';
 const SHELL_ASSETS = [
   '/',
   '/index.html',
   '/favicon.svg',
+  '/favicon.ico',
   '/favicon-32.png',
   '/icon-192.png',
   '/icon-512.png',
@@ -47,7 +48,7 @@ self.addEventListener('fetch', (event) => {
 // 24/7 Push Event Listener
 self.addEventListener('push', (event) => {
   let data = {
-    title: '✦ Recordatorio · Nimbo',
+    title: '🤖 Recordatorio · Nimbo',
     body: 'Tienes una actividad programada.',
     url: '/',
     speechText: 'Tienes una actividad programada en Nimbo.',
