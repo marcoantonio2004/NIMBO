@@ -1,3 +1,16 @@
+const path = require('path');
+const searchPaths = [
+  path.resolve(__dirname, 'node_modules'),
+  path.resolve(__dirname, '../node_modules'),
+  path.resolve(process.cwd(), 'node_modules'),
+  path.resolve(process.cwd(), '../node_modules'),
+];
+for (const p of searchPaths) {
+  if (!module.paths.includes(p)) {
+    module.paths.push(p);
+  }
+}
+
 let app;
 let loadError = null;
 

@@ -8,7 +8,7 @@
     "postinstall": "prisma generate",
     "dev": "tsx watch src/server.ts",
     "worker": "tsx watch src/worker/notificationWorker.ts",
-    "build:cjs": "esbuild src/app.ts --bundle --platform=node --target=node20 --format=cjs --outfile=app.cjs --external:@prisma/client --external:argon2 --external:pg-boss --external:@google/genai",
+    "build:cjs": "esbuild src/app.ts --bundle --platform=node --target=node20 --format=cjs --outfile=app.cjs --external:@prisma/client --external:argon2",
     "build": "prisma generate && npm run build:cjs",
     "start": "node app.js",
     "start:worker": "node dist/worker/notificationWorker.js",
