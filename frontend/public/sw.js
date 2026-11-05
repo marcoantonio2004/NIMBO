@@ -1,5 +1,5 @@
-// NIMBO Service Worker — Web Push 24/7, Speech Alerts & Offline Shell Cache
-const CACHE_NAME = 'nimbo-shell-v7';
+// NIMBO Service Worker — Web Push 24/7, Speech Alerts & Offline-First Shell Cache
+const CACHE_NAME = 'nimbo-shell-v9';
 const SHELL_ASSETS = [
   '/',
   '/index.html',
@@ -15,6 +15,7 @@ const SHELL_ASSETS = [
   '/manifest.json',
 ];
 
+// Pre-cache static shell assets on install
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => cache.addAll(SHELL_ASSETS))
@@ -22,18 +23,23 @@ self.addEventListener('install', (event) => {
   self.skipWaiting();
 });
 
+// Force immediate activation
 self.addEventListener('message', (event) => {
   if (event.data && event.data.type === 'SKIP_WAITING') {
     self.skipWaiting();
   }
 });
 
+// Clean up old caches on activate
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((keys) =>
       Promise.all(
         keys.map((key) => {
-          if (key !== CACHE_NAME) return caches.delete(key);
+          if (key !== CACHE_NAME) {
+            console.log('[SW] Deleting old cache:', key);
+            return caches.delete(key);
+          }
         })
       )
     )
@@ -41,27 +47,99 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
-// Network-first for API, cache-fallback for shell assets & SPA navigation.
+// Network-first for API, Cache-First/Stale-While-Revalidate for Assets, Cache fallback for SPA navigation.
 self.addEventListener('fetch', (event) => {
-  const url = new URL(event.request.url);
-
-  if (url.pathname.startsWith('/api')) {
+  if (event.request.method !== 'GET') {
     return;
   }
 
+  const url = new URL(event.request.url);
+
+  // 1. API calls: Always network, offline fallback JSON
+  if (url.pathname.startsWith('/api')) {
+    event.respondWith(
+      fetch(event.request).catch(() => {
+        return new Response(
+          JSON.stringify({ success: false, offline: true, error: 'Sin conexión a internet' }),
+          { status: 503, headers: { 'Content-Type': 'application/json' } }
+        );
+      })
+    );
+    return;
+  }
+
+  // 2. SPA Navigation routes (e.g. /, /reminders, /calendar, /settings)
+  if (event.request.mode === 'navigate') {
+    event.respondWith(
+      fetch(event.request)
+        .then((response) => {
+          if (response && response.status === 200) {
+            const clone = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+          }
+          return response;
+        })
+        .catch(async () => {
+          const cached =
+            (await caches.match(event.request)) ||
+            (await caches.match('/index.html')) ||
+            (await caches.match('/'));
+          if (cached) return cached;
+          return new Response('NIMBO Offline Shell', { status: 503 });
+        })
+    );
+    return;
+  }
+
+  // 3. Static Assets: JS chunks, CSS, fonts, images, SVGs
+  const isSameOrigin = url.origin === self.location.origin;
+  const isAsset =
+    url.pathname.startsWith('/assets/') ||
+    /\.(js|css|woff2?|png|svg|ico|jpg|jpeg|json|webp)$/i.test(url.pathname);
+
+  if (isSameOrigin && isAsset) {
+    event.respondWith(
+      caches.match(event.request).then((cachedResponse) => {
+        if (cachedResponse) {
+          // If online, update cache in background (Stale-While-Revalidate)
+          if (navigator.onLine) {
+            fetch(event.request)
+              .then((networkResponse) => {
+                if (networkResponse && networkResponse.status === 200) {
+                  caches.open(CACHE_NAME).then((cache) => cache.put(event.request, networkResponse));
+                }
+              })
+              .catch(() => {});
+          }
+          return cachedResponse;
+        }
+
+        // Not in cache: fetch from network and store for offline use
+        return fetch(event.request)
+          .then((networkResponse) => {
+            if (networkResponse && networkResponse.status === 200) {
+              const clone = networkResponse.clone();
+              caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+            }
+            return networkResponse;
+          })
+          .catch(async () => {
+            // Check shell assets fallback (e.g. icons)
+            const fallback = await caches.match(url.pathname);
+            if (fallback) return fallback;
+            return new Response('Asset no disponible offline', { status: 503 });
+          });
+      })
+    );
+    return;
+  }
+
+  // 4. Default: Network with Cache Fallback
   event.respondWith(
     fetch(event.request).catch(async () => {
       const cached = await caches.match(event.request);
       if (cached) return cached;
-
-      // Single Page Application: offline fallback for all navigation routes
-      if (event.request.mode === 'navigate') {
-        const indexCached = await caches.match('/index.html');
-        if (indexCached) return indexCached;
-        return caches.match('/');
-      }
-
-      return new Response('Offline', { status: 503, statusText: 'Offline' });
+      return new Response('Offline', { status: 503 });
     })
   );
 });
@@ -104,19 +182,18 @@ self.addEventListener('push', (event) => {
     ],
   };
 
-  // Broadcast to open clients to speak aloud with Web Speech
   event.waitUntil(
-    Promise.all([
-      self.registration.showNotification(data.title, options),
-      self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
-        clientList.forEach((client) => {
+    self.registration.showNotification(data.title, options).then(() => {
+      return self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clients) => {
+        for (const client of clients) {
           client.postMessage({
             type: 'NIMBO_VOICE_ALERT',
             text: data.speechText || data.body,
+            reminderId: data.data?.reminderId,
           });
-        });
-      }),
-    ])
+        }
+      });
+    })
   );
 });
 
@@ -124,22 +201,18 @@ self.addEventListener('push', (event) => {
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
 
-  if (event.action === 'dismiss') {
-    return;
-  }
-
   const targetUrl = event.notification.data?.url || '/';
 
   event.waitUntil(
-    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
       for (const client of clientList) {
         if (client.url.includes(self.location.origin) && 'focus' in client) {
           client.navigate(targetUrl);
           return client.focus();
         }
       }
-      if (clients.openWindow) {
-        return clients.openWindow(targetUrl);
+      if (self.clients.openWindow) {
+        return self.clients.openWindow(targetUrl);
       }
     })
   );

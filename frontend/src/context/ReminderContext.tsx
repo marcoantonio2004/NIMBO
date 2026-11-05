@@ -196,6 +196,12 @@ export const ReminderProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         }
         if (cachedCats.length > 0) {
           setCategories(cachedCats);
+        } else {
+          setCategories([
+            { id: 'cat-general', name: 'General', color: '#ec4899', isDefault: true, activeRemindersCount: 0 },
+            { id: 'cat-salud', name: 'Salud & Citas', color: '#f43f5e', isDefault: false, activeRemindersCount: 0 },
+            { id: 'cat-personal', name: 'Personal', color: '#8b5cf6', isDefault: false, activeRemindersCount: 0 },
+          ]);
         }
       } catch (err) {
         console.warn('Could not read from IndexedDB cache:', err);

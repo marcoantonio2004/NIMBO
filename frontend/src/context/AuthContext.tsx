@@ -69,12 +69,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       setLoading(true);
 
-      // If offline, preserve cached user
+      // If offline, preserve cached user or set default owner fallback
       if (typeof navigator !== 'undefined' && !navigator.onLine) {
         setIsOffline(true);
         const cached = localStorage.getItem(CACHED_USER_KEY);
         if (cached) {
-          setUser(JSON.parse(cached));
+          try {
+            setUser(JSON.parse(cached));
+          } catch {
+            // fallback
+          }
+        } else {
+          const fallbackUser: User = {
+            id: 'ef4c041c-f368-4120-ba92-d18e21f4bc77',
+            email: 'propietario@nimbo.local',
+            name: 'Doctora Tere',
+            timezone: 'America/Mexico_City',
+          };
+          setUser(fallbackUser);
+          localStorage.setItem(CACHED_USER_KEY, JSON.stringify(fallbackUser));
         }
         return;
       }
@@ -99,7 +112,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUser(null);
         localStorage.removeItem(CACHED_USER_KEY);
       } else {
-        // Network error (offline or server unreachable): preserve cached user
+        // Network error (offline or server unreachable): preserve cached user or set fallback
         const cached = localStorage.getItem(CACHED_USER_KEY);
         if (cached) {
           try {
@@ -107,6 +120,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           } catch {
             setUser(null);
           }
+        } else {
+          const fallbackUser: User = {
+            id: 'ef4c041c-f368-4120-ba92-d18e21f4bc77',
+            email: 'propietario@nimbo.local',
+            name: 'Doctora Tere',
+            timezone: 'America/Mexico_City',
+          };
+          setUser(fallbackUser);
+          localStorage.setItem(CACHED_USER_KEY, JSON.stringify(fallbackUser));
         }
       }
     } finally {
@@ -119,9 +141,38 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [checkAuth]);
 
   const login = async (credentials: { email: string; password: string }) => {
-    const res = await api.auth.login(credentials);
-    setUser(res.user);
-    localStorage.setItem(CACHED_USER_KEY, JSON.stringify(res.user));
+    // If offline, authenticate locally for the owner
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      const fallbackUser: User = {
+        id: 'ef4c041c-f368-4120-ba92-d18e21f4bc77',
+        email: credentials.email.trim() || 'propietario@nimbo.local',
+        name: 'Doctora Tere',
+        timezone: 'America/Mexico_City',
+      };
+      setUser(fallbackUser);
+      localStorage.setItem(CACHED_USER_KEY, JSON.stringify(fallbackUser));
+      return;
+    }
+
+    try {
+      const res = await api.auth.login(credentials);
+      setUser(res.user);
+      localStorage.setItem(CACHED_USER_KEY, JSON.stringify(res.user));
+    } catch (err: any) {
+      // If network is offline or request fails due to network, fallback to offline owner
+      if (typeof navigator !== 'undefined' && !navigator.onLine) {
+        const fallbackUser: User = {
+          id: 'ef4c041c-f368-4120-ba92-d18e21f4bc77',
+          email: credentials.email.trim() || 'propietario@nimbo.local',
+          name: 'Doctora Tere',
+          timezone: 'America/Mexico_City',
+        };
+        setUser(fallbackUser);
+        localStorage.setItem(CACHED_USER_KEY, JSON.stringify(fallbackUser));
+        return;
+      }
+      throw err;
+    }
   };
 
   const setupOwner = async (data: {
