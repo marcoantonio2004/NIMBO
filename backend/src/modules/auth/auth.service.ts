@@ -1,7 +1,20 @@
-import argon2 from 'argon2';
 import crypto from 'crypto';
 import { prisma } from '../../db/prisma';
 import { env } from '../../config/env';
+
+let argon2Instance: typeof import('argon2') | null = null;
+async function getArgon2() {
+  if (!argon2Instance) {
+    try {
+      const mod = await import('argon2');
+      argon2Instance = (mod.default || mod) as typeof import('argon2');
+    } catch (err) {
+      console.error('Critical: Failed to load argon2 module:', err);
+      throw new Error('Authentication module failed to initialize native security bindings.');
+    }
+  }
+  return argon2Instance;
+}
 
 const SETUP_SETTING_KEY = 'SETUP_COMPLETED';
 const SESSION_EXPIRATION_DAYS = 30;
@@ -47,8 +60,9 @@ export class AuthService {
       throw error;
     }
 
-    const passwordHash = await argon2.hash(data.password, {
-      type: argon2.argon2id,
+    const argon = await getArgon2();
+    const passwordHash = await argon.hash(data.password, {
+      type: argon.argon2id,
       memoryCost: 65536,
       timeCost: 3,
       parallelism: 4,
@@ -115,11 +129,13 @@ export class AuthService {
       },
     });
 
+    const argon = await getArgon2();
+
     // If email didn't match directly, check if password matches the single owner
     if (!user) {
       const singleOwner = await prisma.user.findFirst();
       if (singleOwner) {
-        const isOwnerPass = await argon2.verify(singleOwner.passwordHash, data.password);
+        const isOwnerPass = await argon.verify(singleOwner.passwordHash, data.password);
         if (isOwnerPass) {
           user = singleOwner;
         }
@@ -132,7 +148,7 @@ export class AuthService {
       throw error;
     }
 
-    const isValid = await argon2.verify(user.passwordHash, data.password);
+    const isValid = await argon.verify(user.passwordHash, data.password);
     if (!isValid) {
       const error = new Error('Credenciales incorrectas.');
       (error as unknown as { statusCode: number }).statusCode = 401;
@@ -225,15 +241,16 @@ export class AuthService {
         throw error;
       }
 
-      const validCurrent = await argon2.verify(user.passwordHash, updates.currentPassword);
+      const argon = await getArgon2();
+      const validCurrent = await argon.verify(user.passwordHash, updates.currentPassword);
       if (!validCurrent) {
         const error = new Error('La contraseña actual es incorrecta.');
         (error as unknown as { statusCode: number }).statusCode = 400;
         throw error;
       }
 
-      dataToUpdate.passwordHash = await argon2.hash(updates.newPassword, {
-        type: argon2.argon2id,
+      dataToUpdate.passwordHash = await argon.hash(updates.newPassword, {
+        type: argon.argon2id,
         memoryCost: 65536,
         timeCost: 3,
         parallelism: 4,

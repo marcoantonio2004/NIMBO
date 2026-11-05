@@ -37451,16 +37451,41 @@ function errorHandler(err, _req, res, _next) {
 var import_express = __toESM(require_express2());
 
 // src/modules/auth/auth.service.ts
-var import_argon2 = __toESM(require("argon2"));
 var import_crypto = __toESM(require("crypto"));
 
 // src/db/prisma.ts
 var import_client = require("@prisma/client");
-var prisma = new import_client.PrismaClient({
-  log: process.env.NODE_ENV === "development" ? ["warn", "error"] : ["error"]
+var prismaInstance = null;
+function getPrisma() {
+  if (!prismaInstance) {
+    prismaInstance = new import_client.PrismaClient({
+      log: process.env.NODE_ENV === "development" ? ["warn", "error"] : ["error"]
+    });
+  }
+  return prismaInstance;
+}
+var prisma = new Proxy({}, {
+  get(_target, prop) {
+    const client = getPrisma();
+    const val = client[prop];
+    return typeof val === "function" ? val.bind(client) : val;
+  }
 });
 
 // src/modules/auth/auth.service.ts
+var argon2Instance = null;
+async function getArgon2() {
+  if (!argon2Instance) {
+    try {
+      const mod = await import("argon2");
+      argon2Instance = mod.default || mod;
+    } catch (err) {
+      console.error("Critical: Failed to load argon2 module:", err);
+      throw new Error("Authentication module failed to initialize native security bindings.");
+    }
+  }
+  return argon2Instance;
+}
 var SETUP_SETTING_KEY = "SETUP_COMPLETED";
 var SESSION_EXPIRATION_DAYS = 30;
 var DEFAULT_CATEGORIES = [
@@ -37493,8 +37518,9 @@ var AuthService = class {
       error.statusCode = 401;
       throw error;
     }
-    const passwordHash = await import_argon2.default.hash(data.password, {
-      type: import_argon2.default.argon2id,
+    const argon = await getArgon2();
+    const passwordHash = await argon.hash(data.password, {
+      type: argon.argon2id,
       memoryCost: 65536,
       timeCost: 3,
       parallelism: 4
@@ -37543,10 +37569,11 @@ var AuthService = class {
         ]
       }
     });
+    const argon = await getArgon2();
     if (!user) {
       const singleOwner = await prisma.user.findFirst();
       if (singleOwner) {
-        const isOwnerPass = await import_argon2.default.verify(singleOwner.passwordHash, data.password);
+        const isOwnerPass = await argon.verify(singleOwner.passwordHash, data.password);
         if (isOwnerPass) {
           user = singleOwner;
         }
@@ -37557,7 +37584,7 @@ var AuthService = class {
       error.statusCode = 401;
       throw error;
     }
-    const isValid2 = await import_argon2.default.verify(user.passwordHash, data.password);
+    const isValid2 = await argon.verify(user.passwordHash, data.password);
     if (!isValid2) {
       const error = new Error("Credenciales incorrectas.");
       error.statusCode = 401;
@@ -37629,14 +37656,15 @@ var AuthService = class {
         error.statusCode = 400;
         throw error;
       }
-      const validCurrent = await import_argon2.default.verify(user.passwordHash, updates.currentPassword);
+      const argon = await getArgon2();
+      const validCurrent = await argon.verify(user.passwordHash, updates.currentPassword);
       if (!validCurrent) {
         const error = new Error("La contrase\xF1a actual es incorrecta.");
         error.statusCode = 400;
         throw error;
       }
-      dataToUpdate.passwordHash = await import_argon2.default.hash(updates.newPassword, {
-        type: import_argon2.default.argon2id,
+      dataToUpdate.passwordHash = await argon.hash(updates.newPassword, {
+        type: argon.argon2id,
         memoryCost: 65536,
         timeCost: 3,
         parallelism: 4
