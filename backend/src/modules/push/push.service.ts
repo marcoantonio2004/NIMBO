@@ -2,12 +2,18 @@ import webpush from 'web-push';
 import { prisma } from '../../db/prisma';
 import { env } from '../../config/env';
 
-// Configure Web Push with VAPID credentials
-webpush.setVapidDetails(
-  env.VAPID_SUBJECT,
-  env.VAPID_PUBLIC_KEY,
-  env.VAPID_PRIVATE_KEY
-);
+// Configure Web Push with VAPID credentials when available
+if (env.VAPID_PUBLIC_KEY && env.VAPID_PRIVATE_KEY) {
+  try {
+    webpush.setVapidDetails(
+      env.VAPID_SUBJECT || 'mailto:propietario@nimbo.local',
+      env.VAPID_PUBLIC_KEY,
+      env.VAPID_PRIVATE_KEY
+    );
+  } catch (err) {
+    console.warn('Warning: Failed to set VAPID details:', err);
+  }
+}
 
 export interface PushPayload {
   title: string;

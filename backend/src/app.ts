@@ -7,8 +7,6 @@ import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { env } from './config/env';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 import { apiRateLimiter } from './middleware/rateLimit';
 import { errorHandler } from './middleware/errorHandler';
 
@@ -103,7 +101,6 @@ app.use(['/api/ai', '/ai'], aiRouter);
 const possibleDistPaths = [
   path.resolve(process.cwd(), 'frontend/dist'),
   path.resolve(process.cwd(), '../frontend/dist'),
-  path.resolve(__dirname, '../../frontend/dist'),
 ];
 
 const frontendDist = possibleDistPaths.find((p) => fs.existsSync(p));
