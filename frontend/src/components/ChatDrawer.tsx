@@ -33,7 +33,7 @@ interface ChatMessage {
 }
 
 export const ChatDrawer: React.FC = () => {
-  const { reminders, refreshData, toggleComplete } = useReminders();
+  const { reminders, refreshData, toggleComplete, isOffline, createReminder } = useReminders();
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       role: 'assistant',
@@ -205,6 +205,129 @@ export const ChatDrawer: React.FC = () => {
     setInput('');
     setLoading(true);
 
+    // Offline Assistant Execution Handler
+    const executeOfflineAssistant = async (userQuery: string) => {
+      const lower = userQuery.toLowerCase();
+      let reply = '';
+      const todayStr = new Date().toISOString().split('T')[0];
+
+      if (
+        lower.includes('qué tengo') ||
+        lower.includes('que tengo') ||
+        lower.includes('pendientes') ||
+        lower.includes('actividades') ||
+        lower.includes('agenda')
+      ) {
+        const isToday = lower.includes('hoy');
+        const list = isToday
+          ? reminders.filter((r) => r.date === todayStr && r.status !== 'COMPLETED')
+          : reminders.filter((r) => r.status !== 'COMPLETED');
+
+        if (list.length === 0) {
+          reply = isToday
+            ? '¡Buenas noticias! No tienes actividades pendientes programadas para hoy en tu agenda offline. 🌸'
+            : 'No tienes recordatorios pendientes registrados en este dispositivo. ¡Todo en orden! ✨';
+        } else {
+          const formatted = list
+            .slice(0, 5)
+            .map((r) => `• ⏰ **${r.time}** — ${r.title}`)
+            .join('\n');
+          reply = `Tus actividades pendientes (Modo Offline 📶):\n\n${formatted}${
+            list.length > 5 ? `\n\n... y ${list.length - 5} más en tu agenda.` : ''
+          }`;
+        }
+      } else if (
+        lower.includes('recuérdame') ||
+        lower.includes('recuerdame') ||
+        lower.includes('anota') ||
+        lower.includes('agrega') ||
+        lower.startsWith('tengo que') ||
+        lower.startsWith('necesito') ||
+        lower.includes('cita con')
+      ) {
+        let clean = userQuery
+          .replace(
+            /^(recuérdame|recuerdame|anota|anotar|agrega|agregar recordatorio|tengo que|necesito)\s*(que|a|de)?\s*/i,
+            ''
+          )
+          .trim();
+
+        let targetDate = todayStr;
+        if (lower.includes('mañana')) {
+          const d = new Date();
+          d.setDate(d.getDate() + 1);
+          targetDate = d.toISOString().split('T')[0];
+          clean = clean.replace(/\bmañana\b/gi, ' ');
+        } else if (lower.includes('pasado mañana')) {
+          const d = new Date();
+          d.setDate(d.getDate() + 2);
+          targetDate = d.toISOString().split('T')[0];
+          clean = clean.replace(/\bpasado mañana\b/gi, ' ');
+        }
+
+        let targetTime = '09:00';
+        const timeMatch = clean.match(
+          /\b(?:a\s+las\s+)?(\d{1,2})(?::(\d{2}))?\s*(am|pm|de la mañana|de la tarde|de la noche)?\b/i
+        );
+        if (timeMatch) {
+          let h = parseInt(timeMatch[1], 10);
+          const m = timeMatch[2] ? parseInt(timeMatch[2], 10) : 0;
+          const period = (timeMatch[3] || '').toLowerCase();
+          if ((period.includes('pm') || period.includes('tarde') || period.includes('noche')) && h < 12) {
+            h += 12;
+          }
+          if ((period.includes('am') || period.includes('mañana')) && h === 12) {
+            h = 0;
+          }
+          targetTime = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+          clean = clean.replace(timeMatch[0], ' ');
+        }
+
+        const finalTitle = clean.replace(/\s+/g, ' ').trim() || 'Recordatorio offline';
+
+        await createReminder({
+          title: finalTitle,
+          date: targetDate,
+          time: targetTime,
+          priority: 'MEDIUM',
+        });
+
+        reply = `¡Listo! Guardé tu recordatorio localmente en este dispositivo: **"${finalTitle}"** para el ${targetDate} a las ${targetTime}. 🌸 Se sincronizará con la nube cuando te conectes a internet.`;
+      } else {
+        reply = `Estás en modo sin conexión 📶, pero puedo gestionar tu agenda directamente en este dispositivo y leerte mis respuestas por voz. ¿En qué te puedo apoyar? ✨`;
+      }
+
+      const respTime = new Date().toLocaleTimeString('es-MX', {
+        hour: '2-digit',
+        minute: '2-digit',
+      });
+
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: 'assistant',
+          content: reply,
+          timestamp: respTime,
+          aiModelUsed: 'offline-local-engine',
+        },
+      ]);
+
+      if (autoSpeak) {
+        setSpeakingActive(true);
+        speakText(reply, {
+          onEnd: () => setSpeakingActive(false),
+          onError: () => setSpeakingActive(false),
+        });
+      }
+    };
+
+    // If device is offline, execute offline engine immediately
+    if (isOffline || (typeof navigator !== 'undefined' && !navigator.onLine)) {
+      await executeOfflineAssistant(text);
+      setLoading(false);
+      return;
+    }
+
     try {
       const historyPayload = messages.map((m) => ({
         role: m.role,
@@ -243,18 +366,8 @@ export const ChatDrawer: React.FC = () => {
         });
       }
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Error comunicando con el asistente.';
-      setMessages((prev) => [
-        ...prev,
-        {
-          role: 'assistant',
-          content: `Lo siento, ocurrió un error: ${msg}. Por favor intenta de nuevo. 🌸`,
-          timestamp: new Date().toLocaleTimeString('es-MX', {
-            hour: '2-digit',
-            minute: '2-digit',
-          }),
-        },
-      ]);
+      // Network failed during request; fall back gracefully to offline assistant
+      await executeOfflineAssistant(text);
     } finally {
       setLoading(false);
     }

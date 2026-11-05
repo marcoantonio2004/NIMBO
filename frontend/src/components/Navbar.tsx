@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { usePush } from '../context/PushContext';
+import { useReminders } from '../context/ReminderContext';
 import {
   CheckSquare,
   Calendar,
@@ -16,6 +17,8 @@ import {
   LayoutDashboard,
   Menu,
   X,
+  WifiOff,
+  RefreshCw,
 } from 'lucide-react';
 import { BotIcon } from './BotIcon';
 
@@ -27,6 +30,7 @@ interface NavbarProps {
 export const Navbar: React.FC<NavbarProps> = ({ theme, toggleTheme }) => {
   const { user, logout } = useAuth();
   const { isSubscribed, subscribeToPush, loading: pushLoading } = usePush();
+  const { isOffline, pendingSyncCount, triggerSync } = useReminders();
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -81,6 +85,31 @@ export const Navbar: React.FC<NavbarProps> = ({ theme, toggleTheme }) => {
 
           {/* Right actions */}
           <div className="flex items-center gap-2">
+            {/* Offline & Sync Status Indicator */}
+            {isOffline ? (
+              <div
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-bold bg-amber-500/10 border border-amber-500/30 text-amber-600 dark:text-amber-400"
+                title="Modo sin conexión. Tus cambios se guardan localmente y se sincronizarán al reconectar."
+              >
+                <WifiOff className="w-3.5 h-3.5 animate-pulse" />
+                <span className="hidden sm:inline">Offline</span>
+                {pendingSyncCount > 0 && (
+                  <span className="bg-amber-500 text-white text-[9px] px-1.5 py-0.2 rounded-full font-black">
+                    {pendingSyncCount}
+                  </span>
+                )}
+              </div>
+            ) : pendingSyncCount > 0 ? (
+              <button
+                onClick={() => triggerSync()}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-bold bg-rose-500/10 border border-rose-500/30 text-rose-600 dark:text-rose-400 hover:bg-rose-500/20 transition-all"
+                title="Hay cambios locales pendientes de sincronizar con la nube. Haz clic para sincronizar ahora."
+              >
+                <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                <span className="hidden sm:inline">Sincronizar ({pendingSyncCount})</span>
+              </button>
+            ) : null}
+
             {/* Push notification 1-click status / activation */}
             <button
               onClick={() => {

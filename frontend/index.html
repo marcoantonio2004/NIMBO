@@ -44,7 +44,7 @@
       // Register PWA Service Worker with auto-reload on update
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
-          navigator.serviceWorker.register('/sw.js?v=bot6', { updateViaCache: 'none' })
+          navigator.serviceWorker.register('/sw.js?v=bot7', { updateViaCache: 'none' })
             .then((reg) => {
               console.log('✓ NIMBO Service Worker registrado con éxito:', reg.scope);
               reg.update();

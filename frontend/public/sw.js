@@ -1,5 +1,5 @@
 // NIMBO Service Worker — Web Push 24/7, Speech Alerts & Offline Shell Cache
-const CACHE_NAME = 'nimbo-shell-v6';
+const CACHE_NAME = 'nimbo-shell-v7';
 const SHELL_ASSETS = [
   '/',
   '/index.html',
@@ -41,7 +41,7 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
-// Network-first for API, cache-fallback for shell assets.
+// Network-first for API, cache-fallback for shell assets & SPA navigation.
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
 
@@ -50,7 +50,19 @@ self.addEventListener('fetch', (event) => {
   }
 
   event.respondWith(
-    fetch(event.request).catch(() => caches.match(event.request))
+    fetch(event.request).catch(async () => {
+      const cached = await caches.match(event.request);
+      if (cached) return cached;
+
+      // Single Page Application: offline fallback for all navigation routes
+      if (event.request.mode === 'navigate') {
+        const indexCached = await caches.match('/index.html');
+        if (indexCached) return indexCached;
+        return caches.match('/');
+      }
+
+      return new Response('Offline', { status: 503, statusText: 'Offline' });
+    })
   );
 });
 
