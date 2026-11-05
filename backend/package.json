@@ -3,7 +3,9 @@
   "private": true,
   "version": "1.0.0",
   "type": "module",
+  "main": "src/app.ts",
   "scripts": {
+    "postinstall": "prisma generate",
     "dev": "tsx watch src/server.ts",
     "worker": "tsx watch src/worker/notificationWorker.ts",
     "build": "tsc",

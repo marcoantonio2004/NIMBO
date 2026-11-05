@@ -113,3 +113,5 @@ if (frontendDist) {
 
 // Global error handler
 app.use(errorHandler);
+
+export default app;
