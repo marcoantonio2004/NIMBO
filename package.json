@@ -2,19 +2,23 @@
   "name": "nimbo",
   "private": true,
   "version": "1.0.0",
+  "type": "module",
   "workspaces": [
     "backend",
     "frontend"
   ],
   "scripts": {
+    "postinstall": "npm --workspace=backend run db:generate",
     "dev:backend": "npm --workspace=backend run dev",
     "dev:frontend": "npm --workspace=frontend run dev",
     "worker": "npm --workspace=backend run worker",
-    "build": "npm --workspace=backend run build && npm --workspace=frontend run build",
+    "build:serverless": "esbuild backend/src/serverless.ts --bundle --platform=node --target=node20 --format=esm --outfile=api/index.js --external:@prisma/client --external:argon2 --external:pg-boss --external:@google/genai",
+    "build": "npm --workspace=backend run db:generate && npm --workspace=backend run build && npm --workspace=frontend run build && npm run build:serverless",
     "test": "npm --workspace=backend run test && npm --workspace=frontend run test",
     "setup:owner": "npm --workspace=backend run setup:owner",
     "generate:vapid": "npm --workspace=backend run generate:vapid",
     "db:migrate": "npm --workspace=backend run db:migrate",
+    "db:deploy": "npm --workspace=backend run db:deploy",
     "db:generate": "npm --workspace=backend run db:generate"
   },
   "allowScripts": {

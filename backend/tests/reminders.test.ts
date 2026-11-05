@@ -109,4 +109,11 @@ describe('Reminders API & Recurrence Engine', () => {
     expect(snoozeRes.body.reminder.status).toBe('SNOOZED');
     expect(snoozeRes.body.reminder.time).toBe('14:30');
   });
+
+  it('triggers cron notification processing endpoint', async () => {
+    const cronRes = await request(app).get('/api/cron/notifications');
+    expect(cronRes.status).toBe(200);
+    expect(cronRes.body.status).toBe('ok');
+    expect(cronRes.body.processed).toBeGreaterThanOrEqual(0);
+  });
 });

@@ -18,6 +18,7 @@ import { categoriesRouter } from './modules/categories/categories.router';
 import { statsRouter } from './modules/stats/stats.router';
 import { pushRouter } from './modules/push/push.router';
 import { aiRouter } from './modules/ai/ai.router';
+import { processCronNotifications } from './worker/cronWorker';
 
 export const app = express();
 
@@ -60,6 +61,28 @@ app.get('/api/health', (_req, res) => {
     version: '1.0.0',
     timestamp: new Date().toISOString(),
   });
+});
+
+// Cron notification trigger endpoint for serverless (Vercel Cron)
+app.all('/api/cron/notifications', async (req, res) => {
+  if (env.CRON_SECRET) {
+    const authHeader = req.headers['authorization'];
+    if (authHeader !== `Bearer ${env.CRON_SECRET}`) {
+      return res.status(401).json({ error: 'Unauthorized: invalid CRON_SECRET' });
+    }
+  }
+
+  try {
+    const result = await processCronNotifications();
+    return res.json({
+      status: 'ok',
+      timestamp: new Date().toISOString(),
+      ...result,
+    });
+  } catch (error) {
+    console.error('Error in cron notifications trigger:', error);
+    return res.status(500).json({ error: 'Failed to process notifications' });
+  }
 });
 
 // Mount modular API routers
