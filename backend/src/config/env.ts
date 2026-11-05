@@ -21,9 +21,24 @@ const envSchema = z.object({
 
 const parsed = envSchema.safeParse(process.env);
 
-if (!parsed.success) {
-  console.error('Invalid environment variables:', parsed.error.format());
-  throw new Error('Environment configuration error');
-}
+export const env = parsed.success
+  ? { ...parsed.data, envError: null }
+  : {
+      PORT: 4000,
+      NODE_ENV: 'production' as const,
+      DATABASE_URL: process.env.DATABASE_URL || '',
+      DIRECT_URL: process.env.DIRECT_URL || '',
+      SESSION_SECRET: process.env.SESSION_SECRET || '',
+      SETUP_SECRET: process.env.SETUP_SECRET || '',
+      FRONTEND_URL: process.env.FRONTEND_URL || 'http://localhost:5173',
+      VAPID_PUBLIC_KEY: process.env.VAPID_PUBLIC_KEY || '',
+      VAPID_PRIVATE_KEY: process.env.VAPID_PRIVATE_KEY || '',
+      VAPID_SUBJECT: process.env.VAPID_SUBJECT || 'mailto:propietario@nimbo.local',
+      GEMINI_API_KEY: process.env.GEMINI_API_KEY || '',
+      CRON_SECRET: process.env.CRON_SECRET || '',
+      envError: parsed.error.format(),
+    };
 
-export const env = parsed.data;
+if (!parsed.success) {
+  console.error('Environment configuration warning (non-fatal):', parsed.error.format());
+}

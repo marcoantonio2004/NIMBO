@@ -60,6 +60,12 @@ app.get(['/api/health', '/health'], (_req, res) => {
     app: 'NIMBO',
     version: '1.0.0',
     timestamp: new Date().toISOString(),
+    envDiagnosis: {
+      hasDatabaseUrl: Boolean(env.DATABASE_URL),
+      hasVapidPublicKey: Boolean(env.VAPID_PUBLIC_KEY),
+      hasSessionSecret: Boolean(env.SESSION_SECRET),
+      envError: (env as any).envError,
+    },
   });
 });
 

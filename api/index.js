@@ -36612,11 +36612,24 @@ var envSchema = external_exports.object({
   CRON_SECRET: external_exports.string().optional()
 });
 var parsed = envSchema.safeParse(process.env);
+var env = parsed.success ? { ...parsed.data, envError: null } : {
+  PORT: 4e3,
+  NODE_ENV: "production",
+  DATABASE_URL: process.env.DATABASE_URL || "",
+  DIRECT_URL: process.env.DIRECT_URL || "",
+  SESSION_SECRET: process.env.SESSION_SECRET || "",
+  SETUP_SECRET: process.env.SETUP_SECRET || "",
+  FRONTEND_URL: process.env.FRONTEND_URL || "http://localhost:5173",
+  VAPID_PUBLIC_KEY: process.env.VAPID_PUBLIC_KEY || "",
+  VAPID_PRIVATE_KEY: process.env.VAPID_PRIVATE_KEY || "",
+  VAPID_SUBJECT: process.env.VAPID_SUBJECT || "mailto:propietario@nimbo.local",
+  GEMINI_API_KEY: process.env.GEMINI_API_KEY || "",
+  CRON_SECRET: process.env.CRON_SECRET || "",
+  envError: parsed.error.format()
+};
 if (!parsed.success) {
-  console.error("Invalid environment variables:", parsed.error.format());
-  throw new Error("Environment configuration error");
+  console.error("Environment configuration warning (non-fatal):", parsed.error.format());
 }
-var env = parsed.data;
 
 // node_modules/express-rate-limit/dist/index.mjs
 import { Buffer as Buffer2 } from "node:buffer";
@@ -39613,7 +39626,13 @@ app.get(["/api/health", "/health"], (_req, res) => {
     status: "ok",
     app: "NIMBO",
     version: "1.0.0",
-    timestamp: (/* @__PURE__ */ new Date()).toISOString()
+    timestamp: (/* @__PURE__ */ new Date()).toISOString(),
+    envDiagnosis: {
+      hasDatabaseUrl: Boolean(env.DATABASE_URL),
+      hasVapidPublicKey: Boolean(env.VAPID_PUBLIC_KEY),
+      hasSessionSecret: Boolean(env.SESSION_SECRET),
+      envError: env.envError
+    }
   });
 });
 app.all(["/api/cron/notifications", "/cron/notifications"], async (req, res) => {
