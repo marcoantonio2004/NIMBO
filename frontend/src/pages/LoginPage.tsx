@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { Lock, Mail, ArrowRight, ShieldCheck, AlertCircle } from 'lucide-react';
+import { Lock, Mail, ArrowRight, ShieldCheck, AlertCircle, Eye, EyeOff } from 'lucide-react';
 
 export const LoginPage: React.FC = () => {
   const { login } = useAuth();
-  const [email, setEmail] = useState('owner@nimbo.local');
-  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState('propietario@nimbo.local');
+  const [password, setPassword] = useState('PasswordSegura2026!');
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -16,7 +17,7 @@ export const LoginPage: React.FC = () => {
     try {
       setLoading(true);
       setError('');
-      await login({ email: email.trim() || 'owner@nimbo.local', password });
+      await login({ email: email.trim() || 'propietario@nimbo.local', password });
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Error al iniciar sesión';
       setError(msg);
@@ -59,7 +60,7 @@ export const LoginPage: React.FC = () => {
                 autoComplete="username"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="owner@nimbo.local"
+                placeholder="propietario@nimbo.local"
                 className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-[var(--line)] bg-[var(--surface-soft)] text-sm font-semibold focus:border-[var(--site-primary)] outline-none"
               />
             </div>
@@ -72,15 +73,23 @@ export const LoginPage: React.FC = () => {
             <div className="relative">
               <Lock className="w-4 h-4 text-[var(--muted)] absolute left-3.5 top-3" />
               <input
-                type="password"
+                type={showPassword ? 'text' : 'password'}
                 required
                 autoFocus
                 autoComplete="current-password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••••••"
-                className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-[var(--line)] bg-[var(--surface-soft)] text-sm font-semibold focus:border-[var(--site-primary)] outline-none"
+                className="w-full pl-10 pr-10 py-2.5 rounded-xl border border-[var(--line)] bg-[var(--surface-soft)] text-sm font-semibold focus:border-[var(--site-primary)] outline-none"
               />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-2.5 text-[var(--muted)] hover:text-[var(--text)] transition-colors p-0.5"
+                title={showPassword ? 'Ocultar contraseña' : 'Ver contraseña'}
+              >
+                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
             </div>
           </div>
 
