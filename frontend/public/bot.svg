@@ -1,0 +1,80 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fb7185"/>
+      <stop offset="50%" stop-color="#e11d48"/>
+      <stop offset="100%" stop-color="#be185d"/>
+    </linearGradient>
+
+    <radialGradient id="halo" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.3"/>
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>
+    </radialGradient>
+
+    <linearGradient id="headGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="85%" stop-color="#fff1f2"/>
+      <stop offset="100%" stop-color="#fecdd3"/>
+    </linearGradient>
+
+    <linearGradient id="visorGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#181124"/>
+      <stop offset="100%" stop-color="#271435"/>
+    </linearGradient>
+
+    <linearGradient id="accentGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fb7185"/>
+      <stop offset="100%" stop-color="#e11d48"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="512" height="512" rx="140" fill="url(#bgGrad)"/>
+  <circle cx="256" cy="256" r="220" fill="url(#halo)"/>
+
+  <g>
+    <!-- Antenna Pole & Glowing Orb -->
+    <rect x="250" y="75" width="12" height="50" rx="6" fill="#fecdd3"/>
+    <circle cx="256" cy="70" r="18" fill="#fb7185"/>
+    <circle cx="256" cy="70" r="10" fill="#ffffff"/>
+
+    <!-- Ear Muffs -->
+    <rect x="72" y="205" width="38" height="88" rx="19" fill="url(#accentGrad)"/>
+    <rect x="82" y="218" width="16" height="62" rx="8" fill="#ffffff" opacity="0.75"/>
+
+    <rect x="402" y="205" width="38" height="88" rx="19" fill="url(#accentGrad)"/>
+    <rect x="414" y="218" width="16" height="62" rx="8" fill="#ffffff" opacity="0.75"/>
+
+    <!-- Bot Head Shape -->
+    <rect x="94" y="115" width="324" height="265" rx="105" fill="url(#headGrad)"/>
+    <ellipse cx="256" cy="140" rx="115" ry="16" fill="#ffffff" opacity="0.9"/>
+
+    <!-- Visor Face Plate -->
+    <rect x="136" y="162" width="240" height="172" rx="62" fill="url(#visorGrad)"/>
+    <rect x="140" y="166" width="232" height="164" rx="58" fill="none" stroke="#fb7185" stroke-opacity="0.4" stroke-width="2.5"/>
+
+    <!-- Glowing Eyes (Happy Friendly Anime Robot Eyes) -->
+    <g>
+      <!-- Left Eye -->
+      <ellipse cx="198" cy="236" rx="24" ry="32" fill="#38bdf8"/>
+      <ellipse cx="192" cy="226" rx="8" ry="12" fill="#ffffff"/>
+      <circle cx="206" cy="248" r="4.5" fill="#ffffff" opacity="0.85"/>
+
+      <!-- Right Eye -->
+      <ellipse cx="314" cy="236" rx="24" ry="32" fill="#38bdf8"/>
+      <ellipse cx="308" cy="226" rx="8" ry="12" fill="#ffffff"/>
+      <circle cx="322" cy="248" r="4.5" fill="#ffffff" opacity="0.85"/>
+    </g>
+
+    <!-- Cute Blush Cheeks -->
+    <ellipse cx="170" cy="282" rx="18" ry="9" fill="#f43f5e" opacity="0.7"/>
+    <ellipse cx="342" cy="282" rx="18" ry="9" fill="#f43f5e" opacity="0.7"/>
+
+    <!-- Friendly Little Smile -->
+    <path d="M234 278 Q256 296 278 278" fill="none" stroke="#38bdf8" stroke-width="5" stroke-linecap="round"/>
+
+    <!-- Cute Collar & Body -->
+    <rect x="216" y="384" width="80" height="18" rx="9" fill="url(#accentGrad)"/>
+    <path d="M194 408 C194 396 318 396 318 408 L304 456 C304 464 208 464 208 456 Z" fill="url(#headGrad)"/>
+    <circle cx="256" cy="426" r="9" fill="url(#accentGrad)"/>
+  </g>
+</svg>

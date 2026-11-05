@@ -1,8 +1,11 @@
 // NIMBO Service Worker — Web Push 24/7, Speech Alerts & Offline Shell Cache
-const CACHE_NAME = 'nimbo-shell-v5';
+const CACHE_NAME = 'nimbo-shell-v6';
 const SHELL_ASSETS = [
   '/',
   '/index.html',
+  '/bot.svg',
+  '/bot.ico',
+  '/bot-32.png',
   '/favicon.svg',
   '/favicon.ico',
   '/favicon-32.png',
