@@ -24888,6 +24888,36 @@ var require_main = __commonJS({
   }
 });
 
+// src/db/prisma.ts
+var prisma_exports = {};
+__export(prisma_exports, {
+  getPrisma: () => getPrisma,
+  prisma: () => prisma
+});
+function getPrisma() {
+  if (!prismaInstance) {
+    prismaInstance = new import_client.PrismaClient({
+      log: process.env.NODE_ENV === "development" ? ["warn", "error"] : ["error"]
+    });
+  }
+  return prismaInstance;
+}
+var import_client, prismaInstance, prisma;
+var init_prisma = __esm({
+  "src/db/prisma.ts"() {
+    "use strict";
+    import_client = require("@prisma/client");
+    prismaInstance = null;
+    prisma = new Proxy({}, {
+      get(_target, prop) {
+        const client = getPrisma();
+        const val = client[prop];
+        return typeof val === "function" ? val.bind(client) : val;
+      }
+    });
+  }
+});
+
 // ../node_modules/pg-boss/src/plans.js
 var require_plans = __commonJS({
   "../node_modules/pg-boss/src/plans.js"(exports2, module2) {
@@ -73761,9 +73791,11 @@ function errorHandler(err, _req, res, _next) {
   }
   const message = err instanceof Error ? err.message : "Error interno del servidor";
   console.error("Unhandled error:", err);
-  return res.status(500).json({
+  const statusCode = err.statusCode || 500;
+  return res.status(statusCode).json({
     success: false,
-    error: process.env.NODE_ENV === "production" ? "Ocurri\xF3 un error inesperado en el servidor." : message
+    error: message,
+    stack: err instanceof Error ? err.stack : null
   });
 }
 
@@ -73772,27 +73804,7 @@ var import_express = __toESM(require_express2());
 
 // src/modules/auth/auth.service.ts
 var import_crypto = __toESM(require("crypto"));
-
-// src/db/prisma.ts
-var import_client = require("@prisma/client");
-var prismaInstance = null;
-function getPrisma() {
-  if (!prismaInstance) {
-    prismaInstance = new import_client.PrismaClient({
-      log: process.env.NODE_ENV === "development" ? ["warn", "error"] : ["error"]
-    });
-  }
-  return prismaInstance;
-}
-var prisma = new Proxy({}, {
-  get(_target, prop) {
-    const client = getPrisma();
-    const val = client[prop];
-    return typeof val === "function" ? val.bind(client) : val;
-  }
-});
-
-// src/modules/auth/auth.service.ts
+init_prisma();
 var argon2Instance = null;
 async function getArgon2() {
   if (!argon2Instance) {
@@ -74037,6 +74049,7 @@ var validateRequest = (schema) => {
 };
 
 // src/middleware/auth.ts
+init_prisma();
 async function requireAuth(req, res, next) {
   try {
     const tokenFromCookie = req.cookies?.["nimbo_session"];
@@ -74242,6 +74255,9 @@ authRouter.patch(
 
 // src/modules/reminders/reminders.router.ts
 var import_express2 = __toESM(require_express2());
+
+// src/modules/reminders/reminders.service.ts
+init_prisma();
 
 // src/utils/time.ts
 function calculateScheduledTimestamp(dateStr, timeStr, advanceMinutes = 0) {
@@ -74884,6 +74900,7 @@ remindersRouter.post("/clear-completed", async (req, res, next) => {
 var import_express3 = __toESM(require_express2());
 
 // src/modules/categories/categories.service.ts
+init_prisma();
 var CategoriesService = class {
   static async list(userId) {
     const categories = await prisma.category.findMany({
@@ -75034,6 +75051,7 @@ categoriesRouter.delete("/:id", async (req, res, next) => {
 var import_express4 = __toESM(require_express2());
 
 // src/modules/stats/stats.service.ts
+init_prisma();
 var StatsService = class {
   static async getDashboardMetrics(userId, todayDateStr) {
     const now = /* @__PURE__ */ new Date();
@@ -75137,6 +75155,7 @@ var import_express5 = __toESM(require_express2());
 
 // src/modules/push/push.service.ts
 var import_web_push = __toESM(require_src7());
+init_prisma();
 if (env.VAPID_PUBLIC_KEY && env.VAPID_PRIVATE_KEY) {
   try {
     import_web_push.default.setVapidDetails(
@@ -100233,7 +100252,11 @@ function getApiKeyFromEnv() {
   return envGoogleApiKey || envGeminiApiKey || void 0;
 }
 
+// src/modules/ai/ai.service.ts
+init_prisma();
+
 // src/modules/ai/tools.ts
+init_prisma();
 async function executeAITool(userId, toolName, args) {
   try {
     switch (toolName) {
@@ -100711,6 +100734,7 @@ aiRouter.post("/chat", validateRequest(chatSchema), async (req, res, next) => {
 });
 
 // src/worker/cronWorker.ts
+init_prisma();
 async function processCronNotifications() {
   const now = /* @__PURE__ */ new Date();
   const nowTime = now.getTime();
@@ -100868,12 +100892,37 @@ app.use(
 app.use((0, import_cookie_parser.default)());
 app.use(import_express7.default.json({ limit: "2mb" }));
 app.use(["/api", "/auth", "/reminders", "/categories", "/stats", "/push", "/ai"], apiRateLimiter);
-app.get(["/api/health", "/health"], (_req, res) => {
+app.get(["/api/health", "/health"], async (_req, res) => {
+  let dbStatus = "untested";
+  let dbError = null;
+  let argonStatus = "untested";
+  let argonError = null;
+  try {
+    const { prisma: prisma2 } = await Promise.resolve().then(() => (init_prisma(), prisma_exports));
+    const count = await prisma2.user.count();
+    dbStatus = `ok (${count} users)`;
+  } catch (err) {
+    dbStatus = "error";
+    dbError = err?.message || String(err);
+  }
+  try {
+    const argon = await import("argon2");
+    argonStatus = "ok";
+  } catch (err) {
+    argonStatus = "error";
+    argonError = err?.message || String(err);
+  }
   res.json({
     status: "ok",
     app: "NIMBO",
     version: "1.0.0",
     timestamp: (/* @__PURE__ */ new Date()).toISOString(),
+    diagnostics: {
+      dbStatus,
+      dbError,
+      argonStatus,
+      argonError
+    },
     envDiagnosis: {
       hasDatabaseUrl: Boolean(env.DATABASE_URL),
       hasVapidPublicKey: Boolean(env.VAPID_PUBLIC_KEY),

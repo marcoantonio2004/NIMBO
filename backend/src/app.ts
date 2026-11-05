@@ -52,12 +52,40 @@ app.use(express.json({ limit: '2mb' }));
 app.use(['/api', '/auth', '/reminders', '/categories', '/stats', '/push', '/ai'], apiRateLimiter);
 
 // Health check endpoint
-app.get(['/api/health', '/health'], (_req, res) => {
+app.get(['/api/health', '/health'], async (_req, res) => {
+  let dbStatus = 'untested';
+  let dbError = null;
+  let argonStatus = 'untested';
+  let argonError = null;
+
+  try {
+    const { prisma } = await import('./db/prisma');
+    const count = await prisma.user.count();
+    dbStatus = `ok (${count} users)`;
+  } catch (err: any) {
+    dbStatus = 'error';
+    dbError = err?.message || String(err);
+  }
+
+  try {
+    const argon = await import('argon2');
+    argonStatus = 'ok';
+  } catch (err: any) {
+    argonStatus = 'error';
+    argonError = err?.message || String(err);
+  }
+
   res.json({
     status: 'ok',
     app: 'NIMBO',
     version: '1.0.0',
     timestamp: new Date().toISOString(),
+    diagnostics: {
+      dbStatus,
+      dbError,
+      argonStatus,
+      argonError,
+    },
     envDiagnosis: {
       hasDatabaseUrl: Boolean(env.DATABASE_URL),
       hasVapidPublicKey: Boolean(env.VAPID_PUBLIC_KEY),

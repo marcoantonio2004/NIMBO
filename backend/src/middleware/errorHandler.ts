@@ -18,8 +18,11 @@ export function errorHandler(
   const message = err instanceof Error ? err.message : 'Error interno del servidor';
   console.error('Unhandled error:', err);
 
-  return res.status(500).json({
+  const statusCode = (err as unknown as { statusCode?: number }).statusCode || 500;
+
+  return res.status(statusCode).json({
     success: false,
-    error: process.env.NODE_ENV === 'production' ? 'Ocurrió un error inesperado en el servidor.' : message,
+    error: message,
+    stack: err instanceof Error ? err.stack : null,
   });
 }
