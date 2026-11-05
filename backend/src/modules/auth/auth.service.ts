@@ -1,19 +1,31 @@
 import crypto from 'crypto';
+import { argon2id, argon2Verify } from 'hash-wasm';
 import { prisma } from '../../db/prisma';
 import { env } from '../../config/env';
 
-let argon2Instance: typeof import('argon2') | null = null;
-async function getArgon2() {
-  if (!argon2Instance) {
-    try {
-      const mod = await import('argon2');
-      argon2Instance = (mod.default || mod) as typeof import('argon2');
-    } catch (err) {
-      console.error('Critical: Failed to load argon2 module:', err);
-      throw new Error('Authentication module failed to initialize native security bindings.');
-    }
+async function hashPassword(password: string): Promise<string> {
+  const salt = crypto.randomBytes(16);
+  return argon2id({
+    password,
+    salt,
+    parallelism: 4,
+    iterations: 3,
+    memorySize: 65536,
+    hashLength: 32,
+    outputType: 'encoded',
+  });
+}
+
+async function verifyPassword(hash: string, plain: string): Promise<boolean> {
+  try {
+    return await argon2Verify({
+      password: plain,
+      hash,
+    });
+  } catch (err) {
+    console.error('Password verification error:', err);
+    return false;
   }
-  return argon2Instance;
 }
 
 const SETUP_SETTING_KEY = 'SETUP_COMPLETED';
@@ -60,13 +72,7 @@ export class AuthService {
       throw error;
     }
 
-    const argon = await getArgon2();
-    const passwordHash = await argon.hash(data.password, {
-      type: argon.argon2id,
-      memoryCost: 65536,
-      timeCost: 3,
-      parallelism: 4,
-    });
+    const passwordHash = await hashPassword(data.password);
 
     const user = await prisma.$transaction(async (tx) => {
       const newUser = await tx.user.create({
@@ -129,13 +135,11 @@ export class AuthService {
       },
     });
 
-    const argon = await getArgon2();
-
     // If email didn't match directly, check if password matches the single owner
     if (!user) {
       const singleOwner = await prisma.user.findFirst();
       if (singleOwner) {
-        const isOwnerPass = await argon.verify(singleOwner.passwordHash, data.password);
+        const isOwnerPass = await verifyPassword(singleOwner.passwordHash, data.password);
         if (isOwnerPass) {
           user = singleOwner;
         }
@@ -148,7 +152,7 @@ export class AuthService {
       throw error;
     }
 
-    const isValid = await argon.verify(user.passwordHash, data.password);
+    const isValid = await verifyPassword(user.passwordHash, data.password);
     if (!isValid) {
       const error = new Error('Credenciales incorrectas.');
       (error as unknown as { statusCode: number }).statusCode = 401;
@@ -241,20 +245,14 @@ export class AuthService {
         throw error;
       }
 
-      const argon = await getArgon2();
-      const validCurrent = await argon.verify(user.passwordHash, updates.currentPassword);
+      const validCurrent = await verifyPassword(user.passwordHash, updates.currentPassword);
       if (!validCurrent) {
         const error = new Error('La contraseña actual es incorrecta.');
         (error as unknown as { statusCode: number }).statusCode = 400;
         throw error;
       }
 
-      dataToUpdate.passwordHash = await argon.hash(updates.newPassword, {
-        type: argon.argon2id,
-        memoryCost: 65536,
-        timeCost: 3,
-        parallelism: 4,
-      });
+      dataToUpdate.passwordHash = await hashPassword(updates.newPassword);
     }
 
     const updated = await prisma.user.update({

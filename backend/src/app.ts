@@ -68,8 +68,8 @@ app.get(['/api/health', '/health'], async (_req, res) => {
   }
 
   try {
-    const argon = await import('argon2');
-    argonStatus = 'ok';
+    const { argon2Verify } = await import('hash-wasm');
+    argonStatus = 'ok (hash-wasm)';
   } catch (err: any) {
     argonStatus = 'error';
     argonError = err?.message || String(err);
