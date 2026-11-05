@@ -3,7 +3,7 @@
   "private": true,
   "version": "1.0.0",
   "type": "commonjs",
-  "main": "app.js",
+  "main": "index.cjs",
   "scripts": {
     "postinstall": "prisma generate",
     "dev": "tsx watch src/server.ts",
