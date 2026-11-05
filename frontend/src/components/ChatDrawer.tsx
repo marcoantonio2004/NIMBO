@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { api } from '../api/client';
 import { useReminders } from '../context/ReminderContext';
 import { speakText } from '../utils/speech';
+import { BotIcon } from './BotIcon';
 import {
   Sparkles,
   Send,
@@ -141,8 +142,8 @@ export const ChatDrawer: React.FC = () => {
       {/* Header with assistant status & today counter */}
       <div className="flex items-center justify-between px-4 sm:px-5 py-3.5 border-b border-[var(--line)] bg-[var(--surface-soft)]">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-[var(--site-primary)] text-white flex items-center justify-center font-bold shadow-sm shadow-[var(--site-primary)]/20">
-            <Sparkles className="w-5 h-5" />
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-[var(--site-primary)] to-rose-400 p-1 text-white flex items-center justify-center shadow-sm shadow-[var(--site-primary)]/20">
+            <BotIcon className="w-7 h-7" />
           </div>
           <div>
             <div className="flex items-center gap-2">
@@ -211,13 +212,13 @@ export const ChatDrawer: React.FC = () => {
               }`}
             >
               <div
-                className={`w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 text-xs font-bold ${
+                className={`w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 text-xs font-bold overflow-hidden ${
                   isUser
                     ? 'bg-[var(--site-primary)] text-white shadow-xs'
-                    : 'bg-[var(--site-secondary)] text-[var(--site-on-secondary)]'
+                    : 'bg-gradient-to-tr from-[var(--site-primary)] to-rose-400 p-0.5 text-white'
                 }`}
               >
-                {isUser ? <User className="w-4 h-4" /> : <Bot className="w-4 h-4" />}
+                {isUser ? <User className="w-4 h-4" /> : <BotIcon className="w-5 h-5" />}
               </div>
 
               <div

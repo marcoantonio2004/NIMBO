@@ -35,7 +35,7 @@ export const NotificationBarPrompt: React.FC = () => {
   };
 
   return (
-    <div className="p-4 rounded-2xl bg-gradient-to-r from-emerald-500/10 via-[var(--site-secondary)] to-emerald-500/10 border border-[var(--site-primary)]/30 text-[var(--text)] shadow-xs animate-in slide-in-from-top-2 duration-300">
+    <div className="p-4 rounded-2xl bg-gradient-to-r from-rose-500/10 via-[var(--site-secondary)] to-pink-500/10 border border-[var(--site-primary)]/30 text-[var(--text)] shadow-xs animate-in slide-in-from-top-2 duration-300">
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-start gap-3">
           <div className="w-9 h-9 rounded-xl bg-[var(--site-primary)] text-white flex items-center justify-center flex-shrink-0 shadow-sm shadow-[var(--site-primary)]/20">

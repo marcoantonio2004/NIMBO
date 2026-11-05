@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useReminders, ReminderItemData } from '../context/ReminderContext';
 import { ReminderItem } from '../components/ReminderItem';
 import { ReminderModal } from '../components/ReminderModal';
+import { BotIcon } from '../components/BotIcon';
 import { Plus, Search, Filter, ArrowUpDown } from 'lucide-react';
 
 export const RemindersPage: React.FC = () => {
@@ -97,8 +98,8 @@ export const RemindersPage: React.FC = () => {
       {/* Reminders List */}
       <div className="space-y-3">
         {reminders.length === 0 ? (
-          <div className="p-12 text-center bg-[var(--surface)] border border-[var(--line)] rounded-2xl text-[var(--muted)]">
-            <div className="text-3xl mb-2">✦</div>
+          <div className="p-12 text-center bg-[var(--surface)] border border-[var(--line)] rounded-2xl text-[var(--muted)] space-y-2">
+            <BotIcon className="w-12 h-12 mx-auto opacity-70" />
             <p className="text-sm font-bold">No se encontraron recordatorios con los filtros actuales.</p>
           </div>
         ) : (

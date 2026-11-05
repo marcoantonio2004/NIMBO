@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Download, Share, PlusSquare, X, Smartphone, CheckCircle, Monitor, MoreVertical } from 'lucide-react';
+import { BotIcon } from './BotIcon';
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
@@ -102,8 +103,8 @@ export const InstallPwaBanner: React.FC = () => {
         <div className="bg-[var(--surface)]/95 backdrop-blur-md border border-[var(--site-primary)]/40 rounded-2xl p-4 shadow-2xl shadow-[var(--site-primary)]/15 text-[var(--text)]">
           <div className="flex items-start justify-between gap-3">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-[var(--site-primary)] text-white flex items-center justify-center font-black text-xl shadow-md shadow-[var(--site-primary)]/20 flex-shrink-0">
-                ✦
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-[var(--site-primary)] to-rose-400 p-1 text-white flex items-center justify-center shadow-md shadow-[var(--site-primary)]/20 flex-shrink-0">
+                <BotIcon className="w-8 h-8" />
               </div>
               <div>
                 <h4 className="text-xs font-black text-[var(--text)] tracking-tight">

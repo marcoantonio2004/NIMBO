@@ -17,6 +17,7 @@ import {
   Menu,
   X,
 } from 'lucide-react';
+import { BotIcon } from './BotIcon';
 
 interface NavbarProps {
   theme: 'light' | 'dark';
@@ -44,8 +45,8 @@ export const Navbar: React.FC<NavbarProps> = ({ theme, toggleTheme }) => {
           {/* Brand */}
           <div className="flex items-center gap-3">
             <Link to="/" className="flex items-center gap-2.5 group">
-              <div className="w-9 h-9 rounded-xl bg-[var(--site-primary)] text-white flex items-center justify-center font-black shadow-md shadow-[var(--site-primary)]/20 transition-transform group-hover:scale-105">
-                ✦
+              <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-[var(--site-primary)] to-rose-400 p-1 text-white flex items-center justify-center shadow-md shadow-[var(--site-primary)]/20 transition-transform group-hover:scale-105">
+                <BotIcon className="w-7 h-7" />
               </div>
               <div className="flex flex-col">
                 <span className="font-extrabold tracking-tight text-lg text-[var(--text)]">NIMBO</span>

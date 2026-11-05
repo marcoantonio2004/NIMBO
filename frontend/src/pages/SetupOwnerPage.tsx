@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { KeyRound, ShieldAlert, Sparkles, ArrowRight, AlertCircle } from 'lucide-react';
+import { BotIcon } from '../components/BotIcon';
 
 export const SetupOwnerPage: React.FC = () => {
   const { setupOwner } = useAuth();
@@ -43,8 +44,8 @@ export const SetupOwnerPage: React.FC = () => {
     <div className="min-h-screen flex items-center justify-center p-4 bg-[var(--site-background)]">
       <div className="w-full max-w-lg bg-[var(--surface)] border border-[var(--line)] rounded-3xl p-6 sm:p-8 shadow-2xl space-y-6">
         <div className="text-center space-y-2">
-          <div className="w-12 h-12 rounded-2xl bg-[var(--site-primary)] text-white flex items-center justify-center font-black text-xl shadow-lg shadow-[var(--site-primary)]/20 mx-auto">
-            ✦
+          <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-[var(--site-primary)] to-rose-400 p-2.5 text-white flex items-center justify-center shadow-lg shadow-[var(--site-primary)]/20 mx-auto">
+            <BotIcon className="w-9 h-9" />
           </div>
           <h1 className="text-2xl font-black tracking-tight text-[var(--text)]">
             Inicialización Propietaria

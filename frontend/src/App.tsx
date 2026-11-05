@@ -14,6 +14,7 @@ import { SettingsPage } from './pages/SettingsPage';
 import { LoginPage } from './pages/LoginPage';
 import { SetupOwnerPage } from './pages/SetupOwnerPage';
 import { InstallPwaBanner } from './components/InstallPwaBanner';
+import { BotIcon } from './components/BotIcon';
 import { speakText } from './utils/speech';
 
 const AppContent: React.FC = () => {
@@ -56,8 +57,8 @@ const AppContent: React.FC = () => {
   if (loading) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-[var(--site-background)] text-[var(--text)]">
-        <div className="w-12 h-12 rounded-2xl bg-[var(--site-primary)] text-white flex items-center justify-center font-black text-2xl shadow-xl shadow-[var(--site-primary)]/20 animate-pulse">
-          ✦
+        <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-[var(--site-primary)] to-rose-400 p-2 text-white flex items-center justify-center shadow-xl shadow-[var(--site-primary)]/25 animate-pulse">
+          <BotIcon className="w-10 h-10" />
         </div>
         <div className="mt-4 font-black tracking-widest text-xs uppercase text-[var(--muted)]">
           NIMBO

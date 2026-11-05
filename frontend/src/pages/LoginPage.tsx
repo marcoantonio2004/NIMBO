@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { Lock, Mail, ArrowRight, ShieldCheck, AlertCircle, Eye, EyeOff } from 'lucide-react';
+import { BotIcon } from '../components/BotIcon';
 
 export const LoginPage: React.FC = () => {
   const { login } = useAuth();
@@ -31,8 +32,8 @@ export const LoginPage: React.FC = () => {
       <div className="w-full max-w-md bg-[var(--surface)] border border-[var(--line)] rounded-3xl p-6 sm:p-8 shadow-2xl space-y-6">
         {/* Brand */}
         <div className="text-center space-y-2">
-          <div className="w-12 h-12 rounded-2xl bg-[var(--site-primary)] text-white flex items-center justify-center font-black text-xl shadow-lg shadow-[var(--site-primary)]/20 mx-auto">
-            ✦
+          <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-[var(--site-primary)] to-rose-400 p-2.5 text-white flex items-center justify-center shadow-lg shadow-[var(--site-primary)]/25 mx-auto">
+            <BotIcon className="w-9 h-9" />
           </div>
           <h1 className="text-2xl font-black tracking-tight text-[var(--text)]">NIMBO</h1>
           <p className="text-xs text-[var(--muted)] font-medium">
@@ -104,7 +105,7 @@ export const LoginPage: React.FC = () => {
         </form>
 
         <div className="pt-2 text-center text-[10px] text-[var(--muted)] flex items-center justify-center gap-1.5 border-t border-[var(--line)]">
-          <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
+          <ShieldCheck className="w-3.5 h-3.5 text-[var(--site-primary)]" />
           <span>Acceso privado protegido con Argon2id y sesiones cifradas</span>
         </div>
       </div>

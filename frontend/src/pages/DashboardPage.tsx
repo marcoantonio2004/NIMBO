@@ -7,6 +7,7 @@ import { QuickAdd } from '../components/QuickAdd';
 import { ReminderItem } from '../components/ReminderItem';
 import { ReminderModal } from '../components/ReminderModal';
 import { NotificationBarPrompt } from '../components/NotificationBarPrompt';
+import { BotIcon } from '../components/BotIcon';
 import {
   Sparkles,
   ListTodo,
@@ -165,7 +166,7 @@ export const DashboardPage: React.FC = () => {
             <div className="p-4 sm:p-5 space-y-2.5">
               {reminders.length === 0 ? (
                 <div className="py-12 text-center text-[var(--muted)] space-y-2">
-                  <div className="text-3xl font-bold">✦</div>
+                  <BotIcon className="w-12 h-12 mx-auto opacity-70" />
                   <p className="text-sm font-semibold">No hay recordatorios en esta vista.</p>
                   <p className="text-xs">¡Escribe arriba lo que necesitas recordar para agregarlo en segundos!</p>
                 </div>

@@ -1,35 +1,35 @@
 @import "tailwindcss";
 
 :root {
-  --site-primary: #176b55;
-  --site-primary-hover: #135846;
+  --site-primary: #e11d68;
+  --site-primary-hover: #cf135a;
   --site-on-primary: #ffffff;
-  --site-secondary: #e4f1eb;
-  --site-on-secondary: #174d3e;
-  --site-background: #f4f7f4;
-  --site-on-background: #172b25;
+  --site-secondary: #fdf2f8;
+  --site-on-secondary: #9d174d;
+  --site-background: #fdf7f9;
+  --site-on-background: #25121f;
   --surface: #ffffff;
-  --surface-soft: #f7faf8;
-  --text: #1b3028;
-  --muted: #64748b;
-  --line: #e2e8f0;
-  --shadow: 0 16px 45px rgba(23, 107, 85, 0.08);
+  --surface-soft: #fbf0f5;
+  --text: #241421;
+  --muted: #796879;
+  --line: #f1dfe9;
+  --shadow: 0 16px 45px rgba(225, 29, 104, 0.08);
 }
 
 .dark {
-  --site-primary: #2db890;
-  --site-primary-hover: #249977;
-  --site-on-primary: #0a1f18;
-  --site-secondary: #1b2e28;
-  --site-on-secondary: #7ee0c1;
-  --site-background: #0d1513;
-  --site-on-background: #edf5f0;
-  --surface: #131d1a;
-  --surface-soft: #192622;
-  --text: #edf5f0;
-  --muted: #8fa399;
-  --line: #22332d;
-  --shadow: 0 16px 45px rgba(0, 0, 0, 0.35);
+  --site-primary: #f472b6;
+  --site-primary-hover: #fb7185;
+  --site-on-primary: #2b0b1c;
+  --site-secondary: #2c1628;
+  --site-on-secondary: #fbcfe8;
+  --site-background: #0f0b12;
+  --site-on-background: #fdf4f8;
+  --surface: #191220;
+  --surface-soft: #23192c;
+  --text: #fdf4f8;
+  --muted: #ad9aae;
+  --line: #2f203a;
+  --shadow: 0 16px 45px rgba(0, 0, 0, 0.45);
 }
 
 * {

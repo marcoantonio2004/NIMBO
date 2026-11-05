@@ -74,7 +74,7 @@ pushRouter.get('/devices', async (req: AuthenticatedRequest, res, next) => {
 pushRouter.post('/test', async (req: AuthenticatedRequest, res, next) => {
   try {
     const result = await PushService.sendNotificationToUser(req.user!.id, {
-      title: '✦ NIMBO — Notificación de prueba',
+      title: '🤖 NIMBO — Notificación de prueba',
       body: 'Tu dispositivo está correctamente conectado y listo para recibir recordatorios en tiempo real.',
       url: '/',
     });

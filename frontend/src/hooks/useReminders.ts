@@ -91,7 +91,7 @@ export function useReminders() {
             particleCount: 40,
             spread: 60,
             origin: { y: 0.8 },
-            colors: ['#176b55', '#2db890', '#f6b73c', '#ffffff'],
+            colors: ['#e11d68', '#f472b6', '#a855f7', '#ffffff'],
           });
         } catch {
           // ignore

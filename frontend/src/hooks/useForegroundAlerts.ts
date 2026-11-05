@@ -62,7 +62,7 @@ export function useForegroundAlerts(reminders: ReminderItemData[]) {
               Notification.permission === 'granted'
             ) {
               try {
-                new Notification(`✦ Recordatorio (${stageLabel}): ${r.title}`, {
+                new Notification(`🤖 Recordatorio (${stageLabel}): ${r.title}`, {
                   body: `${stageLabel} para tu evento: ${r.title} (${r.time})`,
                   icon: '/favicon.svg',
                   tag: `alert-${alertKey}`,
