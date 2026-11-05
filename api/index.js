@@ -39607,8 +39607,8 @@ app.use(
 );
 app.use((0, import_cookie_parser.default)());
 app.use(import_express7.default.json({ limit: "2mb" }));
-app.use("/api", apiRateLimiter);
-app.get("/api/health", (_req, res) => {
+app.use(["/api", "/auth", "/reminders", "/categories", "/stats", "/push", "/ai"], apiRateLimiter);
+app.get(["/api/health", "/health"], (_req, res) => {
   res.json({
     status: "ok",
     app: "NIMBO",
@@ -39616,7 +39616,7 @@ app.get("/api/health", (_req, res) => {
     timestamp: (/* @__PURE__ */ new Date()).toISOString()
   });
 });
-app.all("/api/cron/notifications", async (req, res) => {
+app.all(["/api/cron/notifications", "/cron/notifications"], async (req, res) => {
   if (env.CRON_SECRET) {
     const authHeader = req.headers["authorization"];
     if (authHeader !== `Bearer ${env.CRON_SECRET}`) {
@@ -39635,12 +39635,12 @@ app.all("/api/cron/notifications", async (req, res) => {
     return res.status(500).json({ error: "Failed to process notifications" });
   }
 });
-app.use("/api/auth", authRouter);
-app.use("/api/reminders", remindersRouter);
-app.use("/api/categories", categoriesRouter);
-app.use("/api/stats", statsRouter);
-app.use("/api/push", pushRouter);
-app.use("/api/ai", aiRouter);
+app.use(["/api/auth", "/auth"], authRouter);
+app.use(["/api/reminders", "/reminders"], remindersRouter);
+app.use(["/api/categories", "/categories"], categoriesRouter);
+app.use(["/api/stats", "/stats"], statsRouter);
+app.use(["/api/push", "/push"], pushRouter);
+app.use(["/api/ai", "/ai"], aiRouter);
 var possibleDistPaths = [
   path2.resolve(process.cwd(), "frontend/dist"),
   path2.resolve(process.cwd(), "../frontend/dist"),

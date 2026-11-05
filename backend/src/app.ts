@@ -51,10 +51,10 @@ app.use(
 
 app.use(cookieParser());
 app.use(express.json({ limit: '2mb' }));
-app.use('/api', apiRateLimiter);
+app.use(['/api', '/auth', '/reminders', '/categories', '/stats', '/push', '/ai'], apiRateLimiter);
 
 // Health check endpoint
-app.get('/api/health', (_req, res) => {
+app.get(['/api/health', '/health'], (_req, res) => {
   res.json({
     status: 'ok',
     app: 'NIMBO',
@@ -64,7 +64,7 @@ app.get('/api/health', (_req, res) => {
 });
 
 // Cron notification trigger endpoint for serverless (Vercel Cron)
-app.all('/api/cron/notifications', async (req, res) => {
+app.all(['/api/cron/notifications', '/cron/notifications'], async (req, res) => {
   if (env.CRON_SECRET) {
     const authHeader = req.headers['authorization'];
     if (authHeader !== `Bearer ${env.CRON_SECRET}`) {
@@ -85,13 +85,13 @@ app.all('/api/cron/notifications', async (req, res) => {
   }
 });
 
-// Mount modular API routers
-app.use('/api/auth', authRouter);
-app.use('/api/reminders', remindersRouter);
-app.use('/api/categories', categoriesRouter);
-app.use('/api/stats', statsRouter);
-app.use('/api/push', pushRouter);
-app.use('/api/ai', aiRouter);
+// Mount modular API routers (supporting both /api/* and /* for reverse proxy flexibility)
+app.use(['/api/auth', '/auth'], authRouter);
+app.use(['/api/reminders', '/reminders'], remindersRouter);
+app.use(['/api/categories', '/categories'], categoriesRouter);
+app.use(['/api/stats', '/stats'], statsRouter);
+app.use(['/api/push', '/push'], pushRouter);
+app.use(['/api/ai', '/ai'], aiRouter);
 
 // Serve frontend static build on port 4000
 const possibleDistPaths = [
