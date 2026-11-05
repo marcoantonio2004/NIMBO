@@ -1,5 +1,5 @@
 // NIMBO Service Worker — Web Push 24/7, Speech Alerts & Offline Shell Cache
-const CACHE_NAME = 'nimbo-shell-v4';
+const CACHE_NAME = 'nimbo-shell-v5';
 const SHELL_ASSETS = [
   '/',
   '/index.html',
@@ -17,6 +17,12 @@ self.addEventListener('install', (event) => {
     caches.open(CACHE_NAME).then((cache) => cache.addAll(SHELL_ASSETS))
   );
   self.skipWaiting();
+});
+
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
 });
 
 self.addEventListener('activate', (event) => {

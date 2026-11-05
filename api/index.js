@@ -77679,7 +77679,7 @@ pushRouter.get("/devices", async (req, res, next) => {
 pushRouter.post("/test", async (req, res, next) => {
   try {
     const result = await PushService.sendNotificationToUser(req.user.id, {
-      title: "\u2726 NIMBO \u2014 Notificaci\xF3n de prueba",
+      title: "\u{1F916} NIMBO \u2014 Notificaci\xF3n de prueba",
       body: "Tu dispositivo est\xE1 correctamente conectado y listo para recibir recordatorios en tiempo real.",
       url: "/"
     });

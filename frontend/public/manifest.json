@@ -51,14 +51,14 @@
       "short_name": "Agenda",
       "description": "Ver actividades de hoy",
       "url": "/",
-      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+      "icons": [{ "src": "/icon-192.png?v=bot2", "sizes": "192x192" }]
     },
     {
       "name": "Asistente Conversacional",
       "short_name": "Asistente",
       "description": "Hablar con Nimbo",
       "url": "/assistant",
-      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+      "icons": [{ "src": "/icon-192.png?v=bot2", "sizes": "192x192" }]
     }
   ]
 }

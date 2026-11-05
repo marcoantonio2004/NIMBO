@@ -41,13 +41,26 @@
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
     <script>
-      // Register PWA Service Worker
+      // Register PWA Service Worker with auto-reload on update
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
-          navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' })
+          navigator.serviceWorker.register('/sw.js?v=bot5', { updateViaCache: 'none' })
             .then((reg) => {
               console.log('✓ NIMBO Service Worker registrado con éxito:', reg.scope);
               reg.update();
+              if (reg.waiting) {
+                reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+              }
+              reg.onupdatefound = () => {
+                const installingWorker = reg.installing;
+                if (installingWorker) {
+                  installingWorker.onstatechange = () => {
+                    if (installingWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                      window.location.reload();
+                    }
+                  };
+                }
+              };
             })
             .catch((err) => {
               console.warn('Fallo al registrar Service Worker:', err);
